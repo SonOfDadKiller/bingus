@@ -54,7 +54,6 @@ struct Binding
 
 static u32 currentActionID;
 static std::vector<Binding> bindings;
-static u32 scrollUp, scrollDown;
 
 void ScrollCallback(GLFWwindow* window, double x, double y)
 {

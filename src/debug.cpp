@@ -1,13 +1,9 @@
-#pragma once
-
 #include "bingus.h"
 
-static VertBuffer spriteBuffer;
-static Shader spriteShader;
+static SpriteBatch spriteBatch;
 static SpriteSheet spriteSheet;
 
-static VertBuffer textBuffer;
-static Shader textShader;
+static TextBatch textBatch;
 
 static std::vector<DebugWidget*> widgets;
 
@@ -15,15 +11,14 @@ static std::vector<DebugWidget*> widgets;
 void InitializeDebug()
 {
 	//Set up renderer
-	spriteBuffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
-
 	spriteSheet = SpriteSheet("debug.png", 1, 7);
-	spriteShader = Shader("world_vertcolor.vert", "sprite_vertcolor.frag");
-	spriteShader.EnableUniforms(SHADER_MAIN_TEX);
+	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
+		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
+		&spriteSheet);
 
-	textBuffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
-	textShader = Shader("world_vertcolor.vert", "text_vertcolor.frag");
-	textShader.EnableUniforms(SHADER_MAIN_TEX);
+	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }), 
+		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX), 
+		Fonts::arial);
 }
 
 void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
@@ -71,25 +66,14 @@ void DebugText::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
 		vec3 extents = vec3(10);
-		Text text = Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial);
-		textBatch->PushText(&text);
+		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial));
 	}
 }
 
 void DrawDebug(float dt)
 {
-	SpriteBatch spriteBatch;
-	spriteBatch.buffer = spriteBuffer;
-	spriteBatch.shader = spriteShader;
-	spriteBatch.sheet = &spriteSheet;
-	spriteBatch.texture = spriteSheet.texture;
-	spriteBatch.Init();
-
-	TextBatch textBatch;
-	textBatch.buffer = textBuffer;
-	textBatch.shader = textShader;
-	textBatch.texture = Fonts::arial->texture;
-	textBatch.Init();
+	spriteBatch.Clear();
+	textBatch.Clear();
 
 	int i = 0;
 	while (i != widgets.size())

@@ -25,8 +25,6 @@ set (CMAKE_CXX_STANDARD 17)
 
 find_library(lib_glfw glfw NAMES glfw3 libglfw3 REQUIRED PATHS ${PROJECT_SOURCE_DIR}/lib/)
 
-find_library(lib_freetype freetype REQUIRED NO_DEFAULT_PATH PATHS ${PROJECT_SOURCE_DIR}/lib/)
-
 add_library(${LIB_NAME} ${BINGUS_SOURCE} ${BINGUS_HEADERS})
 
 target_include_directories(${LIB_NAME}
@@ -39,7 +37,6 @@ target_link_directories(${LIB_NAME}
 
 target_link_libraries(${LIB_NAME}
 	${lib_glfw}
-	${lib_freetype}
 )
 
 #Examples
@@ -56,6 +53,11 @@ set(EXAMPLE2 sprites)
 add_executable(${EXAMPLE2} "examples/sprites.cpp")
 target_link_libraries(${EXAMPLE2} ${LIB_NAME})
 target_include_directories(${EXAMPLE2} PUBLIC "src")
+
+set(EXAMPLE3 text)
+add_executable(${EXAMPLE3} "examples/text.cpp")
+target_link_libraries(${EXAMPLE3} ${LIB_NAME})
+target_include_directories(${EXAMPLE3} PUBLIC "src")
 
 #Copy resources into proj directory where projets can read them
 file(COPY ${PROJECT_SOURCE_DIR}/res/ DESTINATION ${PROJECT_BINARY_DIR}/res/)

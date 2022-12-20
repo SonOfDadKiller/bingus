@@ -13,18 +13,18 @@
 #include <glm/glm.hpp>
 #include <glm/fwd.hpp>
 
-#define i8 int8_t
-#define i16 int16_t
-#define i32 int32_t
-#define i64 int64_t
+using i8 = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
 
-#define u8 uint8_t
-#define u16 uint16_t
-#define u32 uint32_t
-#define u64 uint64_t
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
 
-#define f32 float
-#define f64 double
+using f32 = float;
+using f64 = double;
 
 using std::cout;
 
@@ -148,24 +148,31 @@ struct Sprite
 	float rotation;
 
 	//TODO: Clean up these constructors?
-	Sprite(vec3 position, vec2 size) : Sprite(position, size, 1, 1) { }
+	Sprite(vec3 position, vec2 size) 
+		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), 0, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color) 
+		: Sprite(position, size, pivot, 0.f, color, 0, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color)
+		: Sprite(position, size, pivot, rotation, color, 0, 0) { }
 	Sprite(vec3 position, vec2 size, u32 row, u32 column)
+		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), row, column) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, u32 row, u32 column)
 	{
 		this->position = position;
 		this->size = size;
 		this->row = row;
 		this->column = column;
-		this->rotation = 0.f;
-		this->pivot = BOTTOM_LEFT;
-		this->color = vec4(1);
+		this->rotation = rotation;
+		this->pivot = pivot;
+		this->color = color;
 	}
 };
 
 struct FontCharacter
 {
 	vec2 uvMin, uvMax;
-	glm::ivec2 size, bearing;
-	u32 advance;
+	vec2 size, bearing;
+	float advance;
 };
 
 struct FontCharacterRect
@@ -178,7 +185,7 @@ struct Font
 {
 	u32 texture;
 	u32 lineHeight;
-	std::map<char, FontCharacter> characters;
+	std::map<i32, FontCharacter> characters;
 };
 
 //TODO: Implement proper resource loading system
@@ -187,6 +194,7 @@ Font* LoadFont(const char* filePath, u32 pixelHeight);
 struct Fonts
 {
 	static Font* arial;
+	static Font* linuxLibertine;
 };
 
 //enum Alignment { TOP_LEFT, TOP_CENTER, TOP_RIGHT,
@@ -195,27 +203,27 @@ struct Fonts
 
 struct Text
 {
+	std::string data;
+	Font* font;
+	vec4 color;
 	vec3 position;
 	vec2 extents;
 	vec2 scale;
 	vec2 alignment;
 	float textSize;
-	vec4 color;
-	Font* font;
-	std::string data;
 
 	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
-		: Text(data, position, extents, vec2(1), TOP_LEFT, textSize, vec4(1), font) { }
+		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
 	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
 	{
 		this->data = data;
 		this->position = position;
 		this->extents = extents;
+		this->scale = scale;
 		this->alignment = alignment;
 		this->textSize = textSize;
 		this->color = color;
 		this->font = font;
-		this->scale = scale;
 	}
 };
 
@@ -307,7 +315,6 @@ struct SpriteBatch : RenderBatch
 	VertAttrib* uvAttrib;
 	VertAttrib* colorAttrib;
 	u32 spriteIndex = 0;
-	bool initialized;
 
 	SpriteBatch() { }
 	SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet);
@@ -323,12 +330,18 @@ struct SpriteBatch : RenderBatch
 
 struct TextBatch : RenderBatch
 {
-	u32 totalGlyphIndex = 0;
+	Font* font;
 	VertAttrib* positionAttrib;
 	VertAttrib* uvAttrib;
 	VertAttrib* colorAttrib;
+	u32 glyphIndex = 0;
+
+	TextBatch() { }
+	TextBatch(VertBuffer buffer, Shader shader, Font* font);
+
 	void Init() override;
-	void PushText(Text* text);
+	void Clear() override;
+	void PushText(const Text& text);
 };
 
 void InitializeRenderer();
@@ -367,6 +380,7 @@ struct DebugWidget
 {
 	float timer;
 
+	virtual ~DebugWidget() { };
 	virtual void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) = 0;
 };
 

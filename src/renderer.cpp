@@ -2,12 +2,16 @@
 #include <iostream>
 #include <map>
 
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-//using std::vector;
+#define STB_RECT_PACK_IMPLEMENTATION
+#include <stb_rect_pack.h>
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
+
+#include <string>
 
 //TODO: Pull sprite ownership out of renderer
 static vec2 cameraPosition = vec2(-1, -1);
@@ -17,10 +21,11 @@ mat4 cameraProjection;
 mat4 cameraView;
 mat4 cameraViewProjInverse;
 
-static FT_Library ft;
 static const char* fontPath = "../res/fonts/";
-
 Font* Fonts::arial = nullptr;
+Font* Fonts::linuxLibertine = nullptr;
+Font* LoadFontSTB(const char* filepath, u32 pixelHeight);
+void DebugPrintFontData(Font* font);
 
 void InitializeRenderer()
 {
@@ -40,15 +45,9 @@ void InitializeRenderer()
 	SetCameraPosition(vec2(0));
 	SetCameraSize(2);
 
-	//Initialize text and fonts
-	if (FT_Init_FreeType(&ft))
-	{
-		std::cout << "ERROR::FREETYPE: Could not init FreeType Library\n";
-		return;
-	}
-
 	//Load fonts
-	Fonts::arial = LoadFont("arial.ttf", 40);
+	Fonts::arial = LoadFont("arial.ttf", 80);
+	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
 }
 
 SpriteSheet::SpriteSheet(const char* texturePath, u32 rows, u32 columns)
@@ -195,6 +194,7 @@ void RenderBatch::Clear()
 	vertexCapacity = 0;
 	vertexData.clear();
 	indices.clear();
+	bufferDirty = true;
 }
 
 void RenderBatch::SendVertsToGPUBuffer()
@@ -248,7 +248,6 @@ void SpriteBatch::Clear()
 {
 	RenderBatch::Clear();
 	spriteIndex = 0;
-	bufferDirty = true;
 }
 
 void SpriteBatch::PushSprite(const Sprite& sprite)
@@ -391,9 +390,17 @@ void SpriteBatch::PushSpritesReverse(const std::vector<Sprite>& sprites)
 	}
 }
 
+TextBatch::TextBatch(VertBuffer buffer, Shader shader, Font* font)
+{
+	this->buffer = buffer;
+	this->shader = shader;
+	this->font = font;
+	this->texture = font->texture;
+}
+
 void TextBatch::Init()
 {
-	totalGlyphIndex = 0;
+	glyphIndex = 0;
 
 	//Get vertex attribute offsets
 	positionAttrib = buffer.GetAttribute(VERTEX_POS);
@@ -405,7 +412,13 @@ void TextBatch::Init()
 	assert(uvAttrib != nullptr);
 }
 
-void TextBatch::PushText(Text* text)
+void TextBatch::Clear()
+{
+	RenderBatch::Clear();
+	glyphIndex = 0;
+}
+
+void TextBatch::PushText(const Text& text)
 {
 	//TODO: Make color a vertex attributes
 	//textShader->SetUniformVec4(SHADER_COLOR, color);
@@ -415,29 +428,29 @@ void TextBatch::PushText(Text* text)
 	LazyInit();
 	bufferDirty = true;
 
-	float actualSize = text->textSize / 1000;
+	float actualSize = text.textSize / 1000;
 	vec2 origin = vec2(0);
 
-	vertexCount += text->data.size() * 4;
+	vertexCount += text.data.size() * 4;
 	GrowVertexCapacity(vertexCount);
-	indices.reserve(indices.size() + text->data.size() * 6);
+	indices.reserve(indices.size() + text.data.size() * 6);
 
 	//Create temporary array of rectangles, this is so we can replace things after the fact.
 	std::vector<FontCharacterRect> glyphRects;
-	glyphRects.reserve(text->data.size());
+	glyphRects.reserve(text.data.size());
 
 	vec2 extents = vec2(0);
 
-	for (auto it = text->data.begin(); it != text->data.end(); it++)
+	for (auto it = text.data.begin(); it != text.data.end(); it++)
 	{
-		FontCharacter* glyph = &text->font->characters[*it];
+		FontCharacter* glyph = &text.font->characters[*it];
 
-		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text->scale;
-		vec2 glyphSize = vec2(glyph->size) * actualSize * text->scale;
+		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text.scale;
+		vec2 glyphSize = vec2(glyph->size) * actualSize * text.scale;
 
 		bool newLine = false;
 
-		if (glyphPos.x + glyphSize.x >= text->extents.x)
+		if (glyphPos.x + glyphSize.x >= text.extents.x)
 		{
 			newLine = true;
 		}
@@ -449,7 +462,7 @@ void TextBatch::PushText(Text* text)
 		if (newLine)
 		{
 			//New line, move origin back to start
-			origin = vec2(0, origin.y - text->font->lineHeight);
+			origin = vec2(0, origin.y - text.font->lineHeight);
 			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize; //Recalc
 		}
 
@@ -458,18 +471,17 @@ void TextBatch::PushText(Text* text)
 		if (glyphPos.y + glyphSize.y > extents.y) extents.y = glyphPos.y + glyphSize.y;
 
 		//Move glyph into world space
-		glyphPos += vec2(text->position);
+		glyphPos += vec2(text.position);
 
-		origin.x += (glyph->advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
+		origin.x += glyph->advance;
 
 		glyphRects.push_back({ glyphPos, glyphSize, glyph });
 	}
 
-	vec2 offset = ((text->extents) - extents) * text->alignment;
+	vec2 offset = ((text.extents) - extents) * text.alignment;
 
-	for (u32 glyphIndex = 0; glyphIndex < glyphRects.size(); glyphIndex++)
+	for (const FontCharacterRect& glyphRect : glyphRects)
 	{
-		FontCharacterRect glyphRect = glyphRects[glyphIndex];
 		vec2 pos = glyphRect.position + offset;
 
 		vec3 positions[] = {
@@ -486,8 +498,7 @@ void TextBatch::PushText(Text* text)
 			glyphRect.character->uvMax
 		};
 
-		
-		u32 baseOffset = (totalGlyphIndex * 4 * buffer.vertexTotalComponentCount);
+		u32 baseOffset = (glyphIndex * 4 * buffer.vertexTotalComponentCount);
 
 		for (u32 vertIndex = 0; vertIndex < 4; vertIndex++)
 		{
@@ -500,11 +511,11 @@ void TextBatch::PushText(Text* text)
 			if (colorAttrib != nullptr)
 			{
 				u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
-				memcpy(vertexData.data() + colorOffset, &text->color, sizeof(vec4));
+				memcpy(vertexData.data() + colorOffset, &text.color, sizeof(vec4));
 			}
 		}
 
-		u32 indexOffset = (totalGlyphIndex++) * 4;
+		u32 indexOffset = (glyphIndex++) * 4;
 		indices.push_back(indexOffset + 0);
 		indices.push_back(indexOffset + 1);
 		indices.push_back(indexOffset + 2);
@@ -514,90 +525,97 @@ void TextBatch::PushText(Text* text)
 	}
 }
 
-
-
-Font* LoadFont(const char* filePath, u32 pixelHeight)
+Font* LoadFont(const char* filepath, u32 pixelHeight)
 {
-	Font* font = new Font();
-	font->lineHeight = pixelHeight;
-	std::string fullPath = std::string(fontPath) + filePath;
+	std::string fullPath = std::string(fontPath) + filepath;
 
-	//Load TTF
-	FT_Face face;
-	if (FT_New_Face(ft, "../res/fonts/arial.ttf", 0, &face))
+	//Load .ttf file
+	u64 size;
+	unsigned char* fontBuffer;
+	FILE* fontFile = fopen(fullPath.c_str(), "rb"); //Open file
+	fseek(fontFile, 0, SEEK_END); //Seek to end
+	size = ftell(fontFile); //Get length
+	fseek(fontFile, 0, SEEK_SET); //Seek back to start
+	fontBuffer = new unsigned char[size]; //Allocate buffer
+	fread(fontBuffer, size, 1, fontFile); //Read file into buffer
+	fclose(fontFile); //Close file
+
+	//Create font
+	stbtt_fontinfo fontInfo;
+	if (stbtt_InitFont(&fontInfo, fontBuffer, 0) == 0)
 	{
-		std::cout << "Loading font " << filePath << " failed!\n";
+		std::cout << "Loading font @" << fullPath << " failed!\n";
+		delete[] fontBuffer;
 		return nullptr;
 	}
 
-	FT_Set_Pixel_Sizes(face, 0, pixelHeight); //0 width means automatic based on height
+	stbtt_pack_context packContext;
 
-	//Determine atlas size
-	int atlasWidth = 0;
-	int atlasHeight = 0;
+	const u32 unicodeCharStart = 32;
+	const u32 unicodeCharEnd = 127;
+	const u32 unicodeCharRange = unicodeCharEnd - unicodeCharStart;
 
-	for (FT_ULong c = 32; c < 128; c++)
+	const u32 atlasWidth = 1024;
+	const u32 atlasHeight = 1024;
+	const u32 atlasSize = atlasWidth * atlasHeight;
+	stbtt_packedchar packedChars[unicodeCharRange];
+	unsigned char* pixelBuffer = new unsigned char[atlasSize];
+
+	if (stbtt_PackBegin(&packContext, pixelBuffer, atlasWidth, atlasHeight, 0, 1, 0) == 0)
 	{
-		if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-		{
-			cout << "Loading character " << c << " of font" << filePath << " failed!\n";
-			continue;
-		}
-
-		atlasWidth += face->glyph->bitmap.width;
-		atlasHeight = glm::max(atlasHeight, (int)face->glyph->bitmap.rows);
+		std::cout << "Packing font @" << fullPath << " failed!\n";
+		delete[] fontBuffer;
+		delete[] pixelBuffer;
+		return nullptr;
 	}
+
+	stbtt_PackSetOversampling(&packContext, 2, 2);
+	stbtt_PackFontRange(&packContext, fontBuffer, 0, pixelHeight, unicodeCharStart, unicodeCharRange, packedChars);
+	stbtt_PackEnd(&packContext);
 
 	//Create atlas texture
 	u32 texture;
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //disable byte-alignment restriction
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlasWidth, atlasHeight,
-		0, GL_RED, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlasWidth, atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, pixelBuffer);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	i32 x = 0;
+	Font* font = new Font();
+	font->lineHeight = pixelHeight;
+	font->texture = texture;
 
-	for (FT_ULong c = 32; c < 128; c++)
+	for (i32 c = unicodeCharStart; c < unicodeCharEnd; c++)
 	{
-		if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-			continue;
-
-		glTexSubImage2D(GL_TEXTURE_2D, 0, x, 0, face->glyph->bitmap.width, face->glyph->bitmap.rows,
-			GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
-
-		int bitmapWidth = face->glyph->bitmap.width;
-		int bitmapHeight = face->glyph->bitmap.rows;
-
-		float xMin = (float)x / (float)atlasWidth;
-		float xMax = ((float)x + (float)bitmapWidth) / (float)atlasWidth;
-
-		float yMin = 0.f;
-		float yMax = (float)bitmapHeight / atlasHeight;
-
-		x += face->glyph->bitmap.width;
+		const stbtt_packedchar& packedChar = packedChars[c - unicodeCharStart];
 
 		//Create character and store in map
 		FontCharacter character;
 
-		character.uvMin = vec2(xMin, 0);
-		character.uvMax = vec2(xMax, yMax);
-		character.size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows);
-		character.bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top);
-		character.advance = face->glyph->advance.x;
+		float xpos;
+		float ypos;
+		stbtt_aligned_quad quad;
+		stbtt_GetPackedQuad(packedChars, atlasWidth, atlasHeight, c, &xpos, &ypos, &quad, 0);
 
-		font->characters.insert(std::pair<char, FontCharacter>(c, character));
+		character.uvMin = vec2(packedChar.x0 / (float)atlasWidth, packedChar.y0 / (float)atlasHeight);
+		character.uvMax = vec2(packedChar.x1 / (float)atlasWidth, packedChar.y1 / (float)atlasHeight);
+
+		character.size = vec2(packedChar.xoff2 - packedChar.xoff, packedChar.yoff2 - packedChar.yoff);
+
+		character.bearing = vec2(packedChar.xoff, 1.f - packedChar.yoff);
+		character.advance = packedChar.xadvance;
+
+		font->characters.insert(std::pair<i32, FontCharacter>(c, character));
 	}
 
-	font->texture = texture;
+	std::cout << "Successfully loaded font : @" << fullPath << "!\n";
 
-	FT_Done_Face(face);
-	//FT_Done_FreeType(ft);
+	delete[] fontBuffer;
+	delete[] pixelBuffer;
 
 	return font;
 }
@@ -621,8 +639,6 @@ void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 
 void SetCameraSize(float size, bool forceUpdateUBO)
 {
-	size = glm::clamp(size, 2.f, 40.f);
-
 	if (forceUpdateUBO || cameraSize != size)
 	{
 		cameraSize = size;
@@ -673,3 +689,19 @@ bool PointIntersectsCamera(vec2 position, float buffer)
 
 	return position.x > left && position.x < right && position.y > bottom && position.y < top;
 }
+
+void DebugPrintFontData(Font* font)
+{
+	std::cout << "DEBUG PRINT FONT:\n\n";
+
+	for (auto it = font->characters.begin(); it != font->characters.end(); it++)
+	{
+		std::cout << it->first;
+		std::cout << ":  bearing=(" << std::to_string(it->second.bearing.x) << "," << std::to_string(it->second.bearing.x) << ")	";
+		std::cout << "size=(" << std::to_string(it->second.size.x) << "," << std::to_string(it->second.size.x) << ")	";
+		std::cout << "advance=" << std::to_string(it->second.advance) << "\n";
+	}
+
+	std::cout << "\n";
+}
+

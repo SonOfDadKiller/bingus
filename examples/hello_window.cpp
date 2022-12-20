@@ -23,6 +23,7 @@ static UIText* fpsCounter;
 void Start()
 {
 	fpsCounter = new UIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT);
+	fpsCounter->fontSize = 0.5f;
 
 	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
 	{

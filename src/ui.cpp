@@ -1,13 +1,8 @@
 #include "bingus.h"
 
-static VertBuffer spriteBuffer;
-static Shader spriteShader;
-static std::vector<Sprite*> sprites;
 static SpriteSheet spriteSheet;
-
-static VertBuffer textBuffer;
-static Shader textShader;
-static std::vector<Text*> texts;
+static SpriteBatch spriteBatch;
+static TextBatch textBatch;
 
 UINode* canvas;
 
@@ -15,14 +10,14 @@ static UIMouseEvent mouseEvent;
 
 void InitializeUI()
 {
-	spriteBuffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
 	spriteSheet = SpriteSheet("ui.png", 1, 10);
-	spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag");
-	spriteShader.EnableUniforms(SHADER_MAIN_TEX);
+	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
+		Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
+		&spriteSheet);
 
-	textBuffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
-	textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag");
-	textShader.EnableUniforms(SHADER_MAIN_TEX);
+	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
+		Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
+		Fonts::arial);
 
 	canvas = new UINode(nullptr, vec2(0), GetWindowSize());
 
@@ -53,44 +48,19 @@ void UpdateUI()
 		mouseEvent.position = mousePosition;
 	}
 
-	DeleteAllSprites(&sprites);
-	DeleteAllTexts(&texts);
 	canvas->Step(vec2(0), canvas->size, mouseEvent);
 }
 
 void DrawUI()
 {
+	spriteBatch.Clear();
+	textBatch.Clear();
+
 	canvas->Draw();
 
 	//TODO: Figure out depth and ordering
-
-	if (sprites.size() != 0)
-	{
-		SpriteBatch spriteBatch;
-		spriteBatch.buffer = spriteBuffer;
-		spriteBatch.shader = spriteShader;
-		spriteBatch.sheet = &spriteSheet;
-		spriteBatch.texture = spriteSheet.texture;
-		spriteBatch.Init();
-		spriteBatch.PushSpritesReverse(sprites);
-		spriteBatch.Draw();
-	}
-
-	if (texts.size() != 0)
-	{
-		TextBatch textBatch;
-		textBatch.buffer = textBuffer;
-		textBatch.shader = textShader;
-		textBatch.texture = Fonts::arial->texture;
-		textBatch.Init();
-
-		for (int i = 0; i < texts.size(); i++)
-		{
-			textBatch.PushText(texts[i]);
-		}
-
-		textBatch.Draw();
-	}
+	spriteBatch.Draw();
+	textBatch.Draw();
 }
 
 void UINode::NormalizeRect(vec2& nPos, vec2& nSize)
@@ -136,9 +106,9 @@ void UIImage::Draw()
 	UINode::Draw();
 	vec2 nPos, nSize;
 	NormalizeRect(nPos, nSize);
-	Sprite* sprite = new Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
-	sprite->color = color;
-	sprites.push_back(sprite);
+	Sprite sprite = Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
+	sprite.color = color;
+	spriteBatch.PushSprite(sprite);
 }
 
 void UIText::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent)
@@ -151,9 +121,9 @@ void UIText::Draw()
 	UINode::Draw();
 	vec2 nPos, nSize;
 	NormalizeRect(nPos, nSize);
-	Font* _font = font == nullptr ? Fonts::arial : font;
-	Text* text = new Text(data, vec3(nPos, 0.f), nSize, vec2(1440) / GetWindowSize(), alignment, fontSize, color, _font);
-	texts.push_back(text);
+	//Font* _font = font == nullptr ? Fonts::arial : font;
+	//Text* text = new ;
+	textBatch.PushText(Text(data, vec3(nPos, 0.f), nSize, vec2(1440) / GetWindowSize(), alignment, fontSize, color, Fonts::arial));
 
 	//Outline sprite
 	/*Sprite* sprite = new Sprite(vec3(nPos, 0.f), nSize, 0, 0);
@@ -227,7 +197,7 @@ void UIButton::Draw()
 	//Push button sprite
 	vec2 nPos, nSize;
 	NormalizeRect(nPos, nSize);
-	Sprite* sprite = new Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
-	sprite->color = buttonColor;
-	sprites.push_back(sprite);
+	Sprite sprite = Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
+	sprite.color = buttonColor;
+	spriteBatch.PushSprite(sprite);
 }

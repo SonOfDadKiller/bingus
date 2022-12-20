@@ -26,6 +26,7 @@ SpriteSheet spriteSheet;
 void Start()
 {
 	fpsCounter = new UIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT);
+	fpsCounter->fontSize = 0.5f;
 
 	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
 	{
@@ -35,13 +36,13 @@ void Start()
 	//Set up sprite batch
 	spriteSheet = SpriteSheet("spritesheet.png", 1, 4);
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-				  Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-				  &spriteSheet);
+		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
+		&spriteSheet);
 }
 
 void Update(float dt)
 {
-	fpsCounter->data = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)";
+	fpsCounter->data = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime() * 1000.f) + "ms)";
 }
 
 void Draw()

@@ -38,13 +38,13 @@ u32 LoadShader(ShaderType type, const char* filePath)
 	glCompileShader(id);
 
 	//Log if we failed
-	int success;
+	i32 success;
 	glGetShaderiv(id, GL_COMPILE_STATUS, &success);
 	if (success == GL_FALSE)
 	{
 		char info[512];
 		glGetShaderInfoLog(id, 512, nullptr, info);
-		std::cout << "Failed to make shader! : error in file @" << fullPath << "\n" << info;
+		std::cout << "Failed to make shader! : error in file @" << fullPath << "\n" << info << "\n";
 		return -1;
 	}
 
@@ -60,14 +60,14 @@ Shader::Shader(u32 vertShader, u32 fragShader)
 	glAttachShader(id, fragShader);
 	glLinkProgram(id);
 
-	int success;
+	i32 success;
 	glGetShaderiv(id, GL_LINK_STATUS, &success);
 
 	if (success == GL_FALSE)
 	{
 		char info[512];
 		glGetProgramInfoLog(id, 512, nullptr, info);
-		std::cout << "Failed to make shader program! : linking failed: " << info;
+		std::cout << "Failed to make shader program! : linking failed: " << info << "\n";
 		return;
 	}
 
