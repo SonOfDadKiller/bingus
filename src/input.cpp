@@ -7,16 +7,16 @@ vec3 mouseWorldPosition;
 
 struct Action
 {
-	u32 id;
 	InputEvent fun;
+	u32 id;
 };
 
 struct Binding
 {
-	InputState state;
 	std::vector<Action> pressEvents;
 	std::vector<Action> downEvents;
 	std::vector<Action> releaseEvents;
+	InputState state;
 
 	void AddAction(Action action, InputState _state)
 	{

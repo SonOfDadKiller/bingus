@@ -52,7 +52,7 @@ BINGUS_OBJS =	bingus.o \
 # Define compiler vars
 CC = g++
 AR = ar
-CFLAGS = -Wall
+CFLAGS = -Wall -std=c++17
 
 #all: bingus.a
 

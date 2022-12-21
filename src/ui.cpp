@@ -79,9 +79,9 @@ void UINode::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent
 		vec2 worldAnchor = parentPosition + anchor * parentSize;
 		screenPosition = worldAnchor + position - (size * pivot);
 
-		for (int childIndex = 0; childIndex < children.size(); childIndex++)
+		for (auto it = children.begin(); it != children.end(); it++)
 		{
-			children[childIndex]->Step(screenPosition, size, _mouseEvent);
+			(*it)->Step(screenPosition, size, _mouseEvent);
 		}
 
 		dirty = false;
@@ -90,9 +90,9 @@ void UINode::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent
 
 void UINode::Draw()
 {
-	for (int childIndex = 0; childIndex < children.size(); childIndex++)
+	for (auto it = children.begin(); it != children.end(); it++)
 	{
-		children[childIndex]->Draw();
+		(*it)->Draw();
 	}
 }
 
@@ -192,6 +192,7 @@ void UIButton::Draw()
 	case HELD:
 		buttonColor -= vec4(0.1f, 0.1f, 0.1f, 0.f);
 		break;
+	case RELEASED: break;
 	}
 
 	//Push button sprite

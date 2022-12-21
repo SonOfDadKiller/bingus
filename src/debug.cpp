@@ -75,7 +75,7 @@ void DrawDebug(float dt)
 	spriteBatch.Clear();
 	textBatch.Clear();
 
-	int i = 0;
+	size_t i = 0;
 	while (i != widgets.size())
 	{
 		widgets[i]->timer -= dt;

@@ -136,18 +136,19 @@ VertBuffer::VertBuffer(const std::vector<u32> attributes)
 	//Set up vertex attributes
 	vertexTotalComponentCount = 0;
 	vertexByteWidth = 0;
-	for (int i = 0; i < this->attributes.size(); i++)
+
+	for (auto it = this->attributes.begin(); it != this->attributes.end(); it++)
 	{
-		const VertAttrib& attrib = this->attributes[i];
-		vertexTotalComponentCount += attrib.componentCount;
-		vertexByteWidth += attrib.componentCount * attrib.componentWidth;
+		vertexTotalComponentCount += it->componentCount;
+		vertexByteWidth += it->componentCount * it->componentWidth;
 	}
 
-	for (int i = 0; i < this->attributes.size(); i++)
+	u32 i = 0;
+	for (auto it = this->attributes.begin(); it != this->attributes.end(); it++)
 	{
-		const VertAttrib& attrib = this->attributes[i];
-		glVertexAttribPointer(i, attrib.componentCount, attrib.type, GL_FALSE, vertexByteWidth, (void*)attrib.offset);
+		glVertexAttribPointer(i, it->componentCount, it->type, GL_FALSE, vertexByteWidth, (void*)it->offset);
 		glEnableVertexAttribArray(i);
+		i++;
 	}
 
 	//Unbind and return
@@ -166,10 +167,10 @@ VertAttrib* VertBuffer::GetAttribute(u32 attribute)
 	return nullptr;
 }
 
-i32 VertBuffer::GetAttributeOffset(u32 attribute)
+u32 VertBuffer::GetAttributeOffset(u32 attribute)
 {
 	VertAttrib* attrib = GetAttribute(attribute);
-	if (attrib == nullptr) return -1;
+	if (attrib == nullptr) return 0; //TODO: Implement better error return code
 	return attrib->offset;
 }
 
@@ -179,7 +180,7 @@ void RenderBatch::LazyInit()
 	initialized = true;
 }
 
-void RenderBatch::GrowVertexCapacity(u32 capacity)
+void RenderBatch::GrowVertexCapacity(size_t capacity)
 {
 	if (capacity > vertexCapacity)
 	{
@@ -221,7 +222,7 @@ void RenderBatch::Draw()
 		shader.SetUniformInt(SHADER_MAIN_TEX, 0);
 	}
 
-	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
 }
 
 SpriteBatch::SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet)
@@ -289,11 +290,11 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	cornerPositions[3] += sprite.position;
 
 	//TODO: Rows
-	float spriteUVWidth = 1.f / sheet->columns;
+	float spriteUVWidth = 1.f / (float)sheet->columns;
 
 	//Push sprite data
 	//TODO: Figure out when to grow verts... it should only happen here if not coming from PushSprites()
-	GrowVertexCapacity(vertexCount + 4);
+	GrowVertexCapacity((size_t)vertexCount + 4);
 	vertexCount += 4;
 
 	u32 baseOffset = spriteIndex * buffer.vertexTotalComponentCount * 4;
@@ -311,11 +312,12 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 
 	if (uvAttrib != nullptr)
 	{
+		float fColumn = (float)sprite.column;
 		vec2 cornerUVs[] = {
-			vec2(sprite.column * spriteUVWidth, 0),
-			vec2(sprite.column * spriteUVWidth, 1),
-			vec2((sprite.column + 1) * spriteUVWidth, 1),
-			vec2((sprite.column + 1) * spriteUVWidth, 0)
+			vec2(fColumn * spriteUVWidth, 0.f),
+			vec2(fColumn * spriteUVWidth, 1.f),
+			vec2((fColumn + 1.f) * spriteUVWidth, 1.f),
+			vec2((fColumn + 1.f) * spriteUVWidth, 0.f)
 		};
 
 		for (u32 vert = 0; vert < 4; vert++)
@@ -362,7 +364,7 @@ void SpriteBatch::PushSprites(const std::vector<Sprite>& sprites)
 	GrowVertexCapacity(vertexCount + sprites.size() * 4);
 	indices.reserve(indices.size() + sprites.size() * 6);
 
-	for (Sprite sprite : sprites)
+	for (const Sprite& sprite : sprites)
 	{
 		PushSprite(sprite);
 	}
@@ -462,7 +464,7 @@ void TextBatch::PushText(const Text& text)
 		if (newLine)
 		{
 			//New line, move origin back to start
-			origin = vec2(0, origin.y - text.font->lineHeight);
+			origin = vec2(0, origin.y - (float)text.font->lineHeight);
 			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize; //Recalc
 		}
 
@@ -530,14 +532,14 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 	std::string fullPath = std::string(fontPath) + filepath;
 
 	//Load .ttf file
-	u64 size;
+	long size;
 	unsigned char* fontBuffer;
 	FILE* fontFile = fopen(fullPath.c_str(), "rb"); //Open file
 	fseek(fontFile, 0, SEEK_END); //Seek to end
 	size = ftell(fontFile); //Get length
 	fseek(fontFile, 0, SEEK_SET); //Seek back to start
-	fontBuffer = new unsigned char[size]; //Allocate buffer
-	fread(fontBuffer, size, 1, fontFile); //Read file into buffer
+	fontBuffer = new unsigned char[(size_t)size]; //Allocate buffer
+	fread(fontBuffer, (size_t)size, 1, fontFile); //Read file into buffer
 	fclose(fontFile); //Close file
 
 	//Create font
@@ -570,7 +572,7 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 	}
 
 	stbtt_PackSetOversampling(&packContext, 2, 2);
-	stbtt_PackFontRange(&packContext, fontBuffer, 0, pixelHeight, unicodeCharStart, unicodeCharRange, packedChars);
+	stbtt_PackFontRange(&packContext, fontBuffer, 0, (float)pixelHeight, unicodeCharStart, unicodeCharRange, packedChars);
 	stbtt_PackEnd(&packContext);
 
 	//Create atlas texture
@@ -601,8 +603,8 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 		stbtt_aligned_quad quad;
 		stbtt_GetPackedQuad(packedChars, atlasWidth, atlasHeight, c, &xpos, &ypos, &quad, 0);
 
-		character.uvMin = vec2(packedChar.x0 / (float)atlasWidth, packedChar.y0 / (float)atlasHeight);
-		character.uvMax = vec2(packedChar.x1 / (float)atlasWidth, packedChar.y1 / (float)atlasHeight);
+		character.uvMin = vec2((float)packedChar.x0 / (float)atlasWidth, (float)packedChar.y0 / (float)atlasHeight);
+		character.uvMax = vec2((float)packedChar.x1 / (float)atlasWidth, (float)packedChar.y1 / (float)atlasHeight);
 
 		character.size = vec2(packedChar.xoff2 - packedChar.xoff, packedChar.yoff2 - packedChar.yoff);
 

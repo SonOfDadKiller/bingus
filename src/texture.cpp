@@ -9,7 +9,7 @@ using std::string;
 
 static const char* texture_path = "../res/textures/";
 
-u32 LoadTexture(const char* file_path, u32 wrapMode)
+u32 LoadTexture(const char* file_path, i32 wrapMode)
 {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -50,7 +50,8 @@ u32 LoadTexture(const char* file_path, u32 wrapMode)
 	{
 		std::cout << "Image load failed! : @" << full_path << "\n";
 		stbi_image_free(textureData);
-		return -1;
+		//TODO: Implement proper error return code
+		return 0;
 	}
 
 	std::cout << "Successfully made texture : @" << full_path << "\n";

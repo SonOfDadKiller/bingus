@@ -79,7 +79,7 @@ vec4 hsv(vec4 hsv);
 
 //Texture
 //TODO: Implement proper resource loading system
-u32 LoadTexture(const char* path, u32 wrapMode = GL_REPEAT);
+u32 LoadTexture(const char* path, i32 wrapMode = GL_REPEAT);
 
 //Shader
 enum ShaderType { VERTEX, FRAGMENT };
@@ -273,7 +273,7 @@ struct VertBuffer
 	VertBuffer(const std::vector<u32> attributes);
 
 	VertAttrib* GetAttribute(u32 attribute);
-	i32 GetAttributeOffset(u32 attribute);
+	u32 GetAttributeOffset(u32 attribute);
 };
 
 //NOTE: What do I think of this batch object design? I do like having
@@ -292,8 +292,8 @@ struct RenderBatch
 	std::vector<float> vertexData;
 	std::vector<u32> indices;
 
-	u32 vertexCount = 0;
-	u32 vertexCapacity = 0;
+	size_t vertexCount = 0;
+	size_t vertexCapacity = 0;
 
 	bool initialized = false;
 	bool bufferDirty = false;
@@ -303,7 +303,7 @@ struct RenderBatch
 	void LazyInit();
 	virtual void Init() { };
 	virtual void Clear();
-	void GrowVertexCapacity(u32 capacity);
+	void GrowVertexCapacity(size_t capacity);
 	void SendVertsToGPUBuffer();
 	void Draw();
 };
