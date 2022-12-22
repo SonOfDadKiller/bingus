@@ -16,7 +16,9 @@ Scene::Scene()
 	spriteShader = Shader("world.vert", "sprite.frag");
 	spriteShader.EnableUniforms(SHADER_MAIN_TEX | SHADER_COLOR);
 	spriteShader.SetUniformVec4(SHADER_COLOR, vec4(1, 1, 1, 1));
-	spriteSheet = SpriteSheet("spritesheet.png", 1, 4);
+
+	spriteSheet = SpriteSheet("ui.png");
+	spriteSheet.sequences["debug"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
 }
 
 void Scene::Draw()

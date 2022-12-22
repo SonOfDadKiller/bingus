@@ -57,7 +57,6 @@ void SetGameUpdateFunction(void(*callback)(float));
 void SetGameFixedUpdateFunction(void(*callback)(float));
 void SetGameDrawFunction(void(*callback)());
 
-
 //Window
 #define DEFAULT_WINDOW_WIDTH 1920
 #define DEFAULT_WINDOW_HEIGHT 1080
@@ -79,7 +78,17 @@ vec4 hsv(vec4 hsv);
 
 //Texture
 //TODO: Implement proper resource loading system
-u32 LoadTexture(const char* path, i32 wrapMode = GL_REPEAT);
+//TODO: Create texture type
+
+struct Texture
+{
+	u32 id;
+	vec2 size;
+
+	Texture() { }
+	Texture(u32 id, vec2 size); //This initializes a texture loaded manually
+	Texture(const char* filePath, i32 wrapMode = GL_REPEAT); // This loads a texture from disk
+};
 
 //Shader
 enum ShaderType { VERTEX, FRAGMENT };
@@ -111,14 +120,10 @@ struct Shader
 	void SetUniformVec4(u32 uniform, vec4 v4);
 };
 
-u32 LoadShader(ShaderType, const char* file_path);
+u32 LoadShader(ShaderType, const char* file_path); //Decide where this should go
 void SetActiveShader(Shader* shader);
 
 //Renderer
-//1. Store state of all sprites, state of camera
-//2. Generate and draw sprite batches every frame
-//    a. Perform culling
-//    b. Handle blending
 
 #define TOP_LEFT		vec2(0.0, 1.0)
 #define TOP_CENTER		vec2(0.5, 1.0)
@@ -130,12 +135,34 @@ void SetActiveShader(Shader* shader);
 #define BOTTOM_CENTER	vec2(0.5, 0.0)
 #define BOTTOM_RIGHT	vec2(1.0, 0.0)
 
+struct SpriteSequence
+{
+	vec2 uvStartPosition;
+	vec2 uvRectSize;
+	u32 count;
+	float spacing;
+
+	SpriteSequence() { }
+	SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing);
+};
+
+struct SpriteAnimator
+{
+	float time;
+
+	void Step(float dt);
+};
+
 struct SpriteSheet
 {
-	u32 texture, rows, columns;
+	Texture texture;
+	std::map<std::string, SpriteSequence> sequences;
 
 	SpriteSheet() { }
-	SpriteSheet(const char* filePath, u32 rows, u32 columns);
+	//TODO: Should these constructors take in a texture and expect the user to load it seperately?
+	//Perhaps having the option to do either would be best.
+	SpriteSheet(const char* texturePath);
+	SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences);
 };
 
 struct Sprite
@@ -144,28 +171,15 @@ struct Sprite
 	vec2 size;
 	vec2 pivot;
 	vec4 color;
-	u32 row, column;
+	SpriteSequence* sequence;
+	u32 sequenceFrame;
 	float rotation;
 
-	//TODO: Clean up these constructors?
-	Sprite(vec3 position, vec2 size) 
-		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), 0, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color) 
-		: Sprite(position, size, pivot, 0.f, color, 0, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color)
-		: Sprite(position, size, pivot, rotation, color, 0, 0) { }
-	Sprite(vec3 position, vec2 size, u32 row, u32 column)
-		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), row, column) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, u32 row, u32 column)
-	{
-		this->position = position;
-		this->size = size;
-		this->row = row;
-		this->column = column;
-		this->rotation = rotation;
-		this->pivot = pivot;
-		this->color = color;
-	}
+	Sprite(vec3 position, vec2 size) : Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color) : Sprite(position, size, pivot, 0.f, color, nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color) : Sprite(position, size, pivot, rotation, color, nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, SpriteSequence* sequence, u32 frame) : Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), sequence, frame) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame);
 };
 
 struct FontCharacter
@@ -183,7 +197,7 @@ struct FontCharacterRect
 
 struct Font
 {
-	u32 texture;
+	Texture texture;
 	u32 lineHeight;
 	std::map<i32, FontCharacter> characters;
 };
@@ -197,10 +211,6 @@ struct Fonts
 	static Font* linuxLibertine;
 };
 
-//enum Alignment { TOP_LEFT, TOP_CENTER, TOP_RIGHT,
-//				 CENTER_LEFT, CENTER, CENTER_RIGHT,
-//				 BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT };
-
 struct Text
 {
 	std::string data;
@@ -212,37 +222,9 @@ struct Text
 	vec2 alignment;
 	float textSize;
 
-	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
-		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
-	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
-	{
-		this->data = data;
-		this->position = position;
-		this->extents = extents;
-		this->scale = scale;
-		this->alignment = alignment;
-		this->textSize = textSize;
-		this->color = color;
-		this->font = font;
-	}
+	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font) : Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
+	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
 };
-
-//struct Vertex
-//{
-//	vec3 position;
-//	vec2 uv;
-//	Vertex() { Vertex(vec3(0), vec2(0)); }
-//	Vertex(vec3 position, vec2 uv) : position(position), uv(uv) { }
-//};
-//
-//struct ColorVertex
-//{
-//	vec3 position;
-//	vec2 uv;
-//	vec4 color;
-//	ColorVertex() { ColorVertex(vec3(0), vec2(0), vec4(1)); }
-//	ColorVertex(vec3 position, vec2 uv, vec4 color) : position(position), uv(uv), color(color) { }
-//};
 
 #define VERTEX_POS		0
 #define VERTEX_UV		1
@@ -252,14 +234,7 @@ struct VertAttrib
 {
 	u32 attribute, componentCount, componentWidth, type, offset;
 
-	VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset)
-	{
-		this->attribute = attribute;
-		this->componentCount = componentCount;
-		this->componentWidth = componentWidth;
-		this->type = type;
-		this->offset = offset;
-	}
+	VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset);
 };
 
 struct VertBuffer
@@ -276,18 +251,11 @@ struct VertBuffer
 	u32 GetAttributeOffset(u32 attribute);
 };
 
-//NOTE: What do I think of this batch object design? I do like having
-//		the rendering be programmable from other parts of the code - 
-//		the minimal design of it is good. Why does it not quite feel
-//		right?
-//TODO: Think about this more - take note of how all the responsibilities
-//		are shared
-
 struct RenderBatch
 {
 	VertBuffer buffer;
 	Shader shader;
-	u32 texture;
+	Texture texture;
 
 	std::vector<float> vertexData;
 	std::vector<u32> indices;
@@ -345,10 +313,6 @@ struct TextBatch : RenderBatch
 };
 
 void InitializeRenderer();
-void DeleteSprite(Sprite* sprite, std::vector<Sprite*>* container);
-void DeleteAllSprites(std::vector<Sprite*>* container);
-void DeleteText(Text* text, std::vector<Text*>* container);
-void DeleteAllTexts(std::vector<Text*>* container);
 
 //Camera stuff
 extern mat4 cameraProjection;
@@ -392,16 +356,7 @@ struct DebugIcon : DebugWidget
 	float size;
 	vec4 color;
 
-	DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
-	{
-		this->space = space;
-		this->icon = icon;
-		this->position = position;
-		this->size = size;
-		this->color = color;
-		this->timer = timer;
-	}
-
+	DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer);
 	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
 };
 
@@ -413,16 +368,7 @@ struct DebugLine : DebugWidget
 	float thickness;
 	vec4 color;
 
-	DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer)
-	{
-		this->space = space;
-		this->from = from;
-		this->to = to;
-		this->thickness = thickness;
-		this->color = color;
-		this->timer = timer;
-	}
-
+	DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer);
 	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
 };
 
@@ -434,16 +380,7 @@ struct DebugText : DebugWidget
 	vec4 color;
 	std::string data;
 
-	DebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer)
-	{
-		this->space = space;
-		this->position = position;
-		this->size = size;
-		this->color = color;
-		this->data = data;
-		this->timer = timer;
-	}
-
+	DebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer);
 	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
 };
 
@@ -464,7 +401,6 @@ struct Scene
 	std::vector<Entity> entities;
 
 	Scene();
-
 	void Draw();
 };
 
@@ -533,9 +469,8 @@ void UpdateUI();
 void DrawUI();
 
 struct UINode;
-extern UINode* canvas;
 
-struct Font;
+extern UINode* canvas;
 
 struct UIMouseEvent
 {
@@ -561,52 +496,26 @@ struct UINode
 	vec2 anchor;
 	std::vector<struct UINode*> children;
 
-	UINode(vec2 position, vec2 size)
-		: UINode(canvas, position, size, vec2(0), vec2(0)) { }
-	UINode(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UINode(canvas, position, size, pivot, anchor) { }
-	UINode(UINode* parent, vec2 position, vec2 size)
-		: UINode(parent, position, size, vec2(0), vec2(0)) { }
-	UINode(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-	{
-		this->position = position;
-		this->screenPosition = vec2(0);
-		this->size = size;
-		this->pivot = pivot;
-		this->anchor = anchor;
-		this->parent = parent;
-		this->dirty = true;
-
-		if (parent)
-		{
-			parent->children.push_back(this);
-		}
-	}
+	UINode(vec2 position, vec2 size) : UINode(canvas, position, size, vec2(0), vec2(0)) { }
+	UINode(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UINode(canvas, position, size, pivot, anchor) { }
+	UINode(UINode* parent, vec2 position, vec2 size) : UINode(parent, position, size, vec2(0), vec2(0)) { }
+	UINode(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	virtual void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent);
 	virtual void Draw();
-
 	void NormalizeRect(vec2& nPos, vec2& nSize);
 };
 
 struct UIImage : UINode
 {
-	u32 spriteRow, spriteColumn;
 	vec4 color;
+	SpriteSequence* sequence;
+	u32 frame;
 
-	UIImage(vec2 position, vec2 size)
-		: UIImage(canvas, position, size, vec2(0), vec2(0)) { }
-	UIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UIImage(canvas, position, size, pivot, anchor) { }
-	UIImage(UINode* parent, vec2 position, vec2 size)
-		: UIImage(parent, position, size, vec2(0), vec2(0)) { }
-	UIImage(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UINode(parent, position, size, pivot, anchor)
-	{
-		spriteRow = 0;
-		spriteColumn = 0;
-		color = vec4(1);
-	}
+	UIImage(vec2 position, vec2 size) : UIImage(canvas, position, size, vec2(0), vec2(0)) { }
+	UIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIImage(canvas, position, size, pivot, anchor) { }
+	UIImage(UINode* parent, vec2 position, vec2 size) : UIImage(parent, position, size, vec2(0), vec2(0)) { }
+	UIImage(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
 	void Draw() override;
@@ -620,21 +529,10 @@ struct UIText : UINode
 	vec2 alignment;
 	std::string data;
 
-	UIText(vec2 position, vec2 size)
-		: UIText(canvas, position, size, vec2(0), vec2(0)) { }
-	UIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UIText(canvas, position, size, pivot, anchor) { }
-	UIText(UINode* parent, vec2 position, vec2 size)
-		: UIText(parent, position, size, vec2(0), vec2(0)) { }
-	UIText(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UINode(parent, position, size, pivot, anchor)
-	{
-		fontSize = 1.f;
-		color = vec4(1);
-		font = nullptr;
-		data = "TextTextText";
-		alignment = pivot;
-	}
+	UIText(vec2 position, vec2 size) : UIText(canvas, position, size, vec2(0), vec2(0)) { }
+	UIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIText(canvas, position, size, pivot, anchor) { }
+	UIText(UINode* parent, vec2 position, vec2 size) : UIText(parent, position, size, vec2(0), vec2(0)) { }
+	UIText(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
 	void Draw() override;
@@ -644,29 +542,20 @@ enum ButtonState { RELEASED, HOVER, PRESSED, HELD };
 
 struct UIButton : UINode
 {
-	ButtonState state;
-	u32 spriteRow, spriteColumn;
 	vec4 color;
+	SpriteSequence* sequence;
+	ButtonState state;
+	u32 frame;
+	
 	std::function<void(void)> onHover;
 	std::function<void(void)> onPress;
 	std::function<void(void)> onHold;
 	std::function<void(void)> onRelease;
 
-	UIButton(vec2 position, vec2 size)
-		: UIButton(canvas, position, size, vec2(0), vec2(0)) { }
-	UIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UIButton(canvas, position, size, pivot, anchor) { }
-	UIButton(UINode* parent, vec2 position, vec2 size)
-		: UIButton(parent, position, size, vec2(0), vec2(0)) { }
-	UIButton(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UINode(parent, position, size, pivot, anchor)
-	{
-		state = RELEASED;
-		onPress = nullptr;
-		spriteRow = 0;
-		spriteColumn = 0;
-		color = vec4(1.f);
-	}
+	UIButton(vec2 position, vec2 size) : UIButton(canvas, position, size, vec2(0), vec2(0)) { }
+	UIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIButton(canvas, position, size, pivot, anchor) { }
+	UIButton(UINode* parent, vec2 position, vec2 size) : UIButton(parent, position, size, vec2(0), vec2(0)) { }
+	UIButton(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
 	void Draw() override;

@@ -50,59 +50,62 @@ void InitializeRenderer()
 	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
 }
 
-SpriteSheet::SpriteSheet(const char* texturePath, u32 rows, u32 columns)
+//SpriteSheet::SpriteSheet(const char* texturePath, u32 rows, u32 columns)
+//{
+//	texture = LoadTexture(texturePath, GL_CLAMP_TO_EDGE);
+//	this->rows = rows;
+//	this->columns = columns;
+//}
+
+SpriteSequence::SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing)
 {
-	texture = LoadTexture(texturePath, GL_CLAMP_TO_EDGE);
-	this->rows = rows;
-	this->columns = columns;
+	this->uvStartPosition = uvStartPosition;
+	this->uvRectSize = uvRectSize;
+	this->count = count;
+	this->spacing = spacing;
 }
 
-void DeleteSprite(Sprite* sprite, std::vector<Sprite*>* container)
+SpriteSheet::SpriteSheet(const char* texturePath)
 {
-	auto it = container->begin();
-	for (; it != container->end(); it++)
-	{
-		if (*it == sprite)
-		{
-			delete (*it);
-			break;
-		}
-	}
-
-	if (it != container->end()) container->erase(it);
+	texture = Texture(texturePath, GL_CLAMP_TO_EDGE);
 }
 
-void DeleteAllSprites(std::vector<Sprite*>* container)
+SpriteSheet::SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences)
 {
-	for (auto it = container->begin(); it != container->end(); it++)
-	{
-		delete (*it);
-	}
-	container->clear();
+	texture = Texture(texturePath, GL_CLAMP_TO_EDGE);
+	this->sequences = sequences;
 }
 
-void DeleteText(Text* text, std::vector<Text*>* container)
+Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
 {
-	auto it = container->begin();
-	for (; it != container->end(); it++)
-	{
-		if (*it == text)
-		{
-			delete (*it);
-			break;
-		}
-	}
-
-	if (it != container->end()) container->erase(it);
+	this->position = position;
+	this->size = size;
+	this->sequence = sequence;
+	this->sequenceFrame = frame;
+	this->rotation = rotation;
+	this->pivot = pivot;
+	this->color = color;
 }
 
-void DeleteAllTexts(std::vector<Text*>* container)
+Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
 {
-	for (auto it = container->begin(); it != container->end(); it++)
-	{
-		delete (*it);
-	}
-	container->clear();
+	this->data = data;
+	this->position = position;
+	this->extents = extents;
+	this->scale = scale;
+	this->alignment = alignment;
+	this->textSize = textSize;
+	this->color = color;
+	this->font = font;
+}
+
+VertAttrib::VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset)
+{
+	this->attribute = attribute;
+	this->componentCount = componentCount;
+	this->componentWidth = componentWidth;
+	this->type = type;
+	this->offset = offset;
 }
 
 VertBuffer::VertBuffer(const std::vector<u32> attributes)
@@ -218,7 +221,7 @@ void RenderBatch::Draw()
 	{
 		//Pass texture
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
+		glBindTexture(GL_TEXTURE_2D, texture.id);
 		shader.SetUniformInt(SHADER_MAIN_TEX, 0);
 	}
 
@@ -256,6 +259,8 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	LazyInit();
 	bufferDirty = true;
 
+	assert(positionAttrib != nullptr);
+
 	//Vertices
 	vec3 cornerPositions[] = {
 		vec3(0.f, 0.f, 0),
@@ -289,17 +294,12 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	cornerPositions[2] += sprite.position;
 	cornerPositions[3] += sprite.position;
 
-	//TODO: Rows
-	float spriteUVWidth = 1.f / (float)sheet->columns;
-
 	//Push sprite data
 	//TODO: Figure out when to grow verts... it should only happen here if not coming from PushSprites()
 	GrowVertexCapacity((size_t)vertexCount + 4);
 	vertexCount += 4;
 
 	u32 baseOffset = spriteIndex * buffer.vertexTotalComponentCount * 4;
-
-	assert(positionAttrib != nullptr);
 
 	for (u32 vert = 0; vert < 4; vert++)
 	{
@@ -312,13 +312,26 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 
 	if (uvAttrib != nullptr)
 	{
-		float fColumn = (float)sprite.column;
-		vec2 cornerUVs[] = {
-			vec2(fColumn * spriteUVWidth, 0.f),
-			vec2(fColumn * spriteUVWidth, 1.f),
-			vec2((fColumn + 1.f) * spriteUVWidth, 1.f),
-			vec2((fColumn + 1.f) * spriteUVWidth, 0.f)
-		};
+		//Calculate uvs based on optional sprite sequence
+		vec2 cornerUVs[4];
+		
+		if (sprite.sequence != nullptr)
+		{
+			vec2 uvStartPos = sprite.sequence->uvStartPosition / texture.size;
+			vec2 uvFrameSize = sprite.sequence->uvRectSize / texture.size;
+			vec2 framePosition = uvStartPos + vec2(uvFrameSize.x * sprite.sequenceFrame, 0);
+			cornerUVs[0] = framePosition; //bottom-left
+			cornerUVs[1] = vec2(framePosition.x, framePosition.y + uvFrameSize.y); //top-left
+			cornerUVs[2] = framePosition + uvFrameSize; //top-right
+			cornerUVs[3] = vec2(framePosition.x + uvFrameSize.x, 0.f); //bottom-right
+		}
+		else
+		{
+			cornerUVs[0] = vec2(0, 0); //bottom-left
+			cornerUVs[1] = vec2(0, 1); //top-left
+			cornerUVs[2] = vec2(1, 1); //top-right
+			cornerUVs[3] = vec2(1, 0); //bottom-right
+		}
 
 		for (u32 vert = 0; vert < 4; vert++)
 		{
@@ -576,9 +589,9 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 	stbtt_PackEnd(&packContext);
 
 	//Create atlas texture
-	u32 texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	u32 textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //disable byte-alignment restriction
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlasWidth, atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, pixelBuffer);
 
@@ -589,7 +602,7 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 
 	Font* font = new Font();
 	font->lineHeight = pixelHeight;
-	font->texture = texture;
+	font->texture = Texture(textureID, vec2(atlasWidth, atlasHeight));
 
 	for (i32 c = unicodeCharStart; c < unicodeCharEnd; c++)
 	{

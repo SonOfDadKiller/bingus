@@ -11,7 +11,9 @@ static std::vector<DebugWidget*> widgets;
 void InitializeDebug()
 {
 	//Set up renderer
-	spriteSheet = SpriteSheet("debug.png", 1, 7);
+	spriteSheet = SpriteSheet("debug.png");
+	spriteSheet.sequences["debug"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
+
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
 		&spriteSheet);
@@ -36,6 +38,16 @@ void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string
 	widgets.push_back(new DebugText(space, position, size, color, data, timer));
 }
 
+DebugIcon::DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
+{
+	this->space = space;
+	this->icon = icon;
+	this->position = position;
+	this->size = size;
+	this->color = color;
+	this->timer = timer;
+}
+
 void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 {
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
@@ -45,6 +57,16 @@ void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 		sprite.pivot = CENTER;
 		spriteBatch->PushSprite(sprite);
 	}
+}
+
+DebugLine::DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer)
+{
+	this->space = space;
+	this->from = from;
+	this->to = to;
+	this->thickness = thickness;
+	this->color = color;
+	this->timer = timer;
 }
 
 void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
@@ -59,6 +81,16 @@ void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 		sprite.rotation = glm::degrees(atan2(diff.y, diff.x));
 		spriteBatch->PushSprite(sprite);
 	}
+}
+
+DebugText::DebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer)
+{
+	this->space = space;
+	this->position = position;
+	this->size = size;
+	this->color = color;
+	this->data = data;
+	this->timer = timer;
 }
 
 void DebugText::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)

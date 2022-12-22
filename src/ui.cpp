@@ -10,7 +10,9 @@ static UIMouseEvent mouseEvent;
 
 void InitializeUI()
 {
-	spriteSheet = SpriteSheet("ui.png", 1, 10);
+	spriteSheet = SpriteSheet("ui.png");
+	spriteSheet.sequences["run"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
+
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
 		&spriteSheet);
@@ -63,6 +65,22 @@ void DrawUI()
 	textBatch.Draw();
 }
 
+UINode::UINode(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor)
+{
+	this->position = position;
+	this->screenPosition = vec2(0);
+	this->size = size;
+	this->pivot = pivot;
+	this->anchor = anchor;
+	this->parent = parent;
+	this->dirty = true;
+
+	if (parent)
+	{
+		parent->children.push_back(this);
+	}
+}
+
 void UINode::NormalizeRect(vec2& nPos, vec2& nSize)
 {
 	nPos = (screenPosition / (GetWindowSize() / 2.f)) - vec2(1);
@@ -96,6 +114,13 @@ void UINode::Draw()
 	}
 }
 
+UIImage::UIImage(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UINode(parent, position, size, pivot, anchor)
+{
+	sequence = nullptr;
+	frame = 0;
+	color = vec4(1);
+}
+
 void UIImage::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent)
 {
 	UINode::Step(parentPosition, parentSize, _mouseEvent);
@@ -106,9 +131,16 @@ void UIImage::Draw()
 	UINode::Draw();
 	vec2 nPos, nSize;
 	NormalizeRect(nPos, nSize);
-	Sprite sprite = Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
-	sprite.color = color;
-	spriteBatch.PushSprite(sprite);
+	spriteBatch.PushSprite(Sprite(vec3(nPos, 0.f), nSize, BOTTOM_LEFT, 0.f, color, sequence, frame));
+}
+
+UIText::UIText(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UINode(parent, position, size, pivot, anchor)
+{
+	fontSize = 1.f;
+	color = vec4(1);
+	font = nullptr;
+	data = "TextTextText";
+	alignment = pivot;
 }
 
 void UIText::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent)
@@ -129,6 +161,15 @@ void UIText::Draw()
 	/*Sprite* sprite = new Sprite(vec3(nPos, 0.f), nSize, 0, 0);
 	sprite->color = vec4(1, 1, 1, 0.2);
 	sprites.push_back(sprite);*/
+}
+
+UIButton::UIButton(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UINode(parent, position, size, pivot, anchor)
+{
+	state = RELEASED;
+	onPress = nullptr;
+	sequence = nullptr;
+	frame = 0;
+	color = vec4(1.f);
 }
 
 void UIButton::Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent)
@@ -198,7 +239,7 @@ void UIButton::Draw()
 	//Push button sprite
 	vec2 nPos, nSize;
 	NormalizeRect(nPos, nSize);
-	Sprite sprite = Sprite(vec3(nPos, 0.f), nSize, spriteRow, spriteColumn);
+	Sprite sprite = Sprite(vec3(nPos, 0.f), nSize, sequence, frame);
 	sprite.color = buttonColor;
 	spriteBatch.PushSprite(sprite);
 }

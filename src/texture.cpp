@@ -9,11 +9,16 @@ using std::string;
 
 static const char* texture_path = "../res/textures/";
 
-u32 LoadTexture(const char* file_path, i32 wrapMode)
+Texture::Texture(u32 id, vec2 size)
 {
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
+	this->id = id;
+	this->size = size;
+}
+
+Texture::Texture(const char* filePath, i32 wrapMode)
+{
+	glGenTextures(1, &id);
+	glBindTexture(GL_TEXTURE_2D, id);
 
 	//Set parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
@@ -25,8 +30,9 @@ u32 LoadTexture(const char* file_path, i32 wrapMode)
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true);
 
-	string full_path = string(texture_path) + file_path;
+	string full_path = string(texture_path) + filePath;
 	unsigned char* textureData = stbi_load(full_path.c_str(), &width, &height, &nrChannels, 0);
+	size = vec2(width, height);
 
 	//Detect format
 	unsigned int imageFormat = 0;
@@ -37,7 +43,6 @@ u32 LoadTexture(const char* file_path, i32 wrapMode)
 	case 3: imageFormat = GL_RGB; break;
 	case 4: imageFormat = GL_RGBA; break;
 	}
-
 
 	if (textureData)
 	{
@@ -50,11 +55,9 @@ u32 LoadTexture(const char* file_path, i32 wrapMode)
 	{
 		std::cout << "Image load failed! : @" << full_path << "\n";
 		stbi_image_free(textureData);
-		//TODO: Implement proper error return code
-		return 0;
+		//TODO: Implement proper error return code??
 	}
 
 	std::cout << "Successfully made texture : @" << full_path << "\n";
-
-	return textureID;
 }
+
