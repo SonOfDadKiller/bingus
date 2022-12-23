@@ -26,14 +26,14 @@ float CalcAverageTick(float newtick)
 }
 
 //Time management
-static float time;
+static float gameTime;
 static float stepAccumulator = 0.f;
 static const float stepTime = 1.f / 1.f;
 static float stepAlpha;
 
 float GetTime()
 {
-	return time;
+	return gameTime;
 }
 
 float GetAvgFrameTime()
@@ -75,9 +75,9 @@ void RunGame()
 	//Game loop
 	while (!GameShouldExit())
 	{
-		prevTime = time;
-		time = (float)glfwGetTime();
-		dt = time - prevTime;
+		prevTime = gameTime;
+		gameTime = (float)glfwGetTime();
+		dt = gameTime - prevTime;
 
 		UpdateInput(GetWindow(), dt);
 		UpdateUI();

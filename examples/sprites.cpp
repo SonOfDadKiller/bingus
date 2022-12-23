@@ -56,7 +56,7 @@ void Draw()
 		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), -0.15f, 0.f);
 		spriteBatch.PushSprite(Sprite(position, vec2(0.3), &spriteSheet.sequences["run"], (u32)(GetTime() * 4.f) % 4));
 	}
-
+	
 	spriteBatch.Draw();
 }
 

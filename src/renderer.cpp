@@ -76,6 +76,16 @@ SpriteSheet::SpriteSheet(const char* texturePath, std::map<std::string, SpriteSe
 	this->sequences = sequences;
 }
 
+SpriteAnimator::SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed)
+{
+	this->sheet = sheet;
+	sequence = &this->sheet->sequences[sequenceName];
+	this->speed = speed;
+	time = 0.f;
+	
+	//TODO: Register with system
+}
+
 Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
 {
 	this->position = position;

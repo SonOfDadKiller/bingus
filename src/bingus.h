@@ -146,13 +146,6 @@ struct SpriteSequence
 	SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing);
 };
 
-struct SpriteAnimator
-{
-	float time;
-
-	void Step(float dt);
-};
-
 struct SpriteSheet
 {
 	Texture texture;
@@ -163,6 +156,17 @@ struct SpriteSheet
 	//Perhaps having the option to do either would be best.
 	SpriteSheet(const char* texturePath);
 	SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences);
+};
+
+struct SpriteAnimator
+{
+	SpriteSequence* sequence;
+	SpriteSheet* sheet;
+	float speed;
+	float time;
+
+	SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed);
+	void Step(float dt);
 };
 
 struct Sprite
