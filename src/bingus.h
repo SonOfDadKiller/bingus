@@ -42,6 +42,22 @@ float GetAvgFrameTime();
 u32 GetFPS();
 float GetTime();
 
+struct Timer
+{
+	float timeElapsed;
+	float speed;
+	bool paused;
+
+	~Timer();
+
+	void Reset();
+	void Stop();
+	void Pause();
+	void Play();
+};
+
+Timer* CreateTimer();
+
 //Colors
 void SetClearColor(vec4 color);
 
@@ -162,11 +178,12 @@ struct SpriteAnimator
 {
 	SpriteSequence* sequence;
 	SpriteSheet* sheet;
-	float speed;
-	float time;
+	Timer* timer;
 
+	SpriteAnimator() { }
 	SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed);
-	void Step(float dt);
+	u32 GetFrame();
+	void SetSequence(std::string name);
 };
 
 struct Sprite
@@ -176,14 +193,23 @@ struct Sprite
 	vec2 pivot;
 	vec4 color;
 	SpriteSequence* sequence;
+	SpriteAnimator* animator;
 	u32 sequenceFrame;
 	float rotation;
 
-	Sprite(vec3 position, vec2 size) : Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color) : Sprite(position, size, pivot, 0.f, color, nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color) : Sprite(position, size, pivot, rotation, color, nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, SpriteSequence* sequence, u32 frame) : Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), sequence, frame) { }
+	Sprite(vec3 position, vec2 size)
+		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color)
+		: Sprite(position, size, pivot, 0.f, color, nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color)
+		: Sprite(position, size, pivot, rotation, color, nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, SpriteSequence* sequence, u32 frame)
+		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), sequence, frame) { }
 	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame);
+
+	Sprite(vec3 position, vec2 size, SpriteAnimator* animator)
+		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), animator) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator);
 };
 
 struct FontCharacter
@@ -226,7 +252,8 @@ struct Text
 	vec2 alignment;
 	float textSize;
 
-	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font) : Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
+	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
+		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
 	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
 };
 
@@ -500,9 +527,12 @@ struct UINode
 	vec2 anchor;
 	std::vector<struct UINode*> children;
 
-	UINode(vec2 position, vec2 size) : UINode(canvas, position, size, vec2(0), vec2(0)) { }
-	UINode(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UINode(canvas, position, size, pivot, anchor) { }
-	UINode(UINode* parent, vec2 position, vec2 size) : UINode(parent, position, size, vec2(0), vec2(0)) { }
+	UINode(vec2 position, vec2 size)
+		: UINode(canvas, position, size, vec2(0), vec2(0)) { }
+	UINode(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
+		: UINode(canvas, position, size, pivot, anchor) { }
+	UINode(UINode* parent, vec2 position, vec2 size)
+		: UINode(parent, position, size, vec2(0), vec2(0)) { }
 	UINode(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	virtual void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent);
@@ -516,9 +546,12 @@ struct UIImage : UINode
 	SpriteSequence* sequence;
 	u32 frame;
 
-	UIImage(vec2 position, vec2 size) : UIImage(canvas, position, size, vec2(0), vec2(0)) { }
-	UIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIImage(canvas, position, size, pivot, anchor) { }
-	UIImage(UINode* parent, vec2 position, vec2 size) : UIImage(parent, position, size, vec2(0), vec2(0)) { }
+	UIImage(vec2 position, vec2 size)
+		: UIImage(canvas, position, size, vec2(0), vec2(0)) { }
+	UIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
+		: UIImage(canvas, position, size, pivot, anchor) { }
+	UIImage(UINode* parent, vec2 position, vec2 size)
+		: UIImage(parent, position, size, vec2(0), vec2(0)) { }
 	UIImage(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
 
 	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;

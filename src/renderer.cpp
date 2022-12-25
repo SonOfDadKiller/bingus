@@ -24,7 +24,6 @@ mat4 cameraViewProjInverse;
 static const char* fontPath = "../res/fonts/";
 Font* Fonts::arial = nullptr;
 Font* Fonts::linuxLibertine = nullptr;
-Font* LoadFontSTB(const char* filepath, u32 pixelHeight);
 void DebugPrintFontData(Font* font);
 
 void InitializeRenderer()
@@ -50,13 +49,6 @@ void InitializeRenderer()
 	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
 }
 
-//SpriteSheet::SpriteSheet(const char* texturePath, u32 rows, u32 columns)
-//{
-//	texture = LoadTexture(texturePath, GL_CLAMP_TO_EDGE);
-//	this->rows = rows;
-//	this->columns = columns;
-//}
-
 SpriteSequence::SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing)
 {
 	this->uvStartPosition = uvStartPosition;
@@ -80,10 +72,19 @@ SpriteAnimator::SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, flo
 {
 	this->sheet = sheet;
 	sequence = &this->sheet->sequences[sequenceName];
-	this->speed = speed;
-	time = 0.f;
-	
-	//TODO: Register with system
+	this->timer = CreateTimer();
+	this->timer->speed = speed;
+}
+
+u32 SpriteAnimator::GetFrame()
+{
+	return (u32)timer->timeElapsed % sequence->count;
+}
+
+void SpriteAnimator::SetSequence(std::string name)
+{
+	sequence = &sheet->sequences[name];
+	this->timer->Reset();
 }
 
 Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
@@ -95,6 +96,19 @@ Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color,
 	this->rotation = rotation;
 	this->pivot = pivot;
 	this->color = color;
+	this->animator = nullptr;
+}
+
+Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
+{
+	this->position = position;
+	this->size = size;
+	this->pivot = pivot;
+	this->rotation = rotation;
+	this->color = color;
+	this->animator = animator;
+	this->sequenceFrame = 0;
+	this->sequence = nullptr;
 }
 
 Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
@@ -322,14 +336,28 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 
 	if (uvAttrib != nullptr)
 	{
-		//Calculate uvs based on optional sprite sequence
+		//Calculate uvs based on optional sprite sequence and animator
 		vec2 cornerUVs[4];
-		
-		if (sprite.sequence != nullptr)
+
+		SpriteSequence* sequence = nullptr;
+		u32 frame;
+
+		if (sprite.animator != nullptr)
 		{
-			vec2 uvStartPos = sprite.sequence->uvStartPosition / texture.size;
-			vec2 uvFrameSize = sprite.sequence->uvRectSize / texture.size;
-			vec2 framePosition = uvStartPos + vec2(uvFrameSize.x * sprite.sequenceFrame, 0);
+			sequence = sprite.animator->sequence;
+			frame = sprite.animator->GetFrame();
+		}
+		else if (sprite.sequence != nullptr)
+		{
+			sequence = sprite.sequence;
+			frame = sprite.sequenceFrame;
+		}
+		
+		if (sequence != nullptr)
+		{
+			vec2 uvStartPos = sequence->uvStartPosition / texture.size;
+			vec2 uvFrameSize = sequence->uvRectSize / texture.size;
+			vec2 framePosition = uvStartPos + vec2(uvFrameSize.x * frame, 0);
 			cornerUVs[0] = framePosition; //bottom-left
 			cornerUVs[1] = vec2(framePosition.x, framePosition.y + uvFrameSize.y); //top-left
 			cornerUVs[2] = framePosition + uvFrameSize; //top-right

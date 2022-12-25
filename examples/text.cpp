@@ -61,7 +61,10 @@ void Draw()
 	dynamicBatch.Clear();
 
 	vec4 color = vec4(0.7f + sin(GetTime() * 0.5f) * 0.3f, 0.7f + cos(GetTime() * 1.f) * 0.3f, 0.7f + cos(GetTime() * 2.f) * 0.3f, 1.f);
-	dynamicBatch.PushText(Text("this text is dynamic", vec3(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f, 0), vec2(2, 0), vec2(0.6), CENTER, 4.f, color, Fonts::linuxLibertine));
+	dynamicBatch.PushText(Text("this text is dynamic",
+							   vec3(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f, 0),
+							   vec2(2, 0), vec2(0.6),
+							   CENTER, 4.f, color, Fonts::linuxLibertine));
 
 	staticBatch.Draw();
 	dynamicBatch.Draw();

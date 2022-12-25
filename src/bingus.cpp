@@ -46,6 +46,52 @@ u32 GetFPS()
 	return framesPerSecond;
 }
 
+//Timers
+static std::vector<Timer*> timers;
+
+Timer* CreateTimer()
+{
+	Timer* timer = new Timer();
+	timer->timeElapsed = 0.f;
+	timer->speed = 1.f;
+	timer->paused = false;
+	timers.push_back(timer);
+	return timer;
+}
+
+Timer::~Timer()
+{
+	//Remove from global list upon destruction
+	auto it = timers.begin();
+	while (it != timers.end())
+	{
+		if (*it == this) break;
+	}
+	
+	if (it != timers.end()) timers.erase(it);
+}
+
+void Timer::Reset()
+{
+	timeElapsed = 0.f;
+}
+
+void Timer::Pause()
+{
+	paused = true;
+}
+
+void Timer::Stop()
+{
+	Reset();
+	Pause();
+}
+
+void Timer::Play()
+{
+	paused = false;
+}
+
 //Colors
 static vec4 clearColor;
 
@@ -64,7 +110,6 @@ void BingusInit()
 	clearColor = vec4(0, 0, 0, 1);
 }
 
-
 void RunGame()
 {
 	if (startEvent != nullptr) startEvent();
@@ -81,6 +126,12 @@ void RunGame()
 
 		UpdateInput(GetWindow(), dt);
 		UpdateUI();
+
+		//Update timers
+		for (auto it = timers.begin(); it != timers.end(); it++)
+		{
+			if (!(*it)->paused) (*it)->timeElapsed += dt * (*it)->speed;
+		}
 
 		//Fixed timestep
 		if (dt > 0.25f) dt = 0.25f;

@@ -22,6 +22,7 @@ static UIText* fpsCounter;
 
 SpriteBatch spriteBatch;
 SpriteSheet spriteSheet;
+SpriteAnimator spriteAnim;
 
 void Start()
 {
@@ -34,8 +35,8 @@ void Start()
 	});
 
 	//Set up sprite batch
-	spriteSheet = SpriteSheet("spritesheet.png");
-	spriteSheet.sequences["run"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
+	spriteSheet = SpriteSheet("spritesheet.png", { { "run", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
+	spriteAnim = SpriteAnimator(&spriteSheet, "run", 10.f);
 
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
@@ -54,7 +55,7 @@ void Draw()
 	for (int i = 0; i < 10; i++)
 	{
 		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), -0.15f, 0.f);
-		spriteBatch.PushSprite(Sprite(position, vec2(0.3), &spriteSheet.sequences["run"], (u32)(GetTime() * 4.f) % 4));
+		spriteBatch.PushSprite(Sprite(position, vec2(0.3), &spriteAnim));
 	}
 	
 	spriteBatch.Draw();
