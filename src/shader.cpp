@@ -61,7 +61,7 @@ Shader::Shader(u32 vertShader, u32 fragShader)
 	glLinkProgram(id);
 
 	GLint success;
-	glGetShaderiv(id, GL_LINK_STATUS, &success);
+	glGetProgramiv(id, GL_LINK_STATUS, &success);
 
 	if (success == GL_FALSE)
 	{
