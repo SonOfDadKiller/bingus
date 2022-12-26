@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.23.0)
 
 set(LIB_NAME "bingus")
 project(${LIB_NAME})
+set (CMAKE_CXX_STANDARD 17)
 
+# Define source and header files
 SET(BINGUS_SOURCE
 	"src/glad.c"
 	"src/bingus.cpp"
@@ -18,47 +20,43 @@ SET(BINGUS_SOURCE
 )
 
 SET(BINGUS_HEADERS
-	"src/bingus.h"
+	"include/bingus.h"
 )
 
-set (CMAKE_CXX_STANDARD 17)
-
-find_library(lib_glfw glfw NAMES glfw3 libglfw3 REQUIRED PATHS ${PROJECT_SOURCE_DIR}/lib/)
-
+# Compile bingus as a library
 add_library(${LIB_NAME} ${BINGUS_SOURCE} ${BINGUS_HEADERS})
 
-target_include_directories(${LIB_NAME}
-	PUBLIC "include"
-)
+# Our include directories, these will apply to examples below also
+include_directories(include)
+include_directories(lib/glfw/include)
+include_directories(lib/glm)
 
-target_link_directories(${LIB_NAME}
-	PUBLIC "lib"
-)
+# Git submodule dependencies
+add_subdirectory(lib/glm)
+add_subdirectory(lib/glfw)
 
-target_link_libraries(${LIB_NAME}
-	${lib_glfw}
-)
+# Link library dependencies
+target_link_libraries(${LIB_NAME} glfw)
+
+
 
 #Examples
 
-set(EXAMPLE1 hello_window)
-add_executable(${EXAMPLE1} "examples/hello_window.cpp")
-target_link_libraries(${EXAMPLE1} ${LIB_NAME})
-target_include_directories(${EXAMPLE1} PUBLIC "src")
+#Example 1 - hello_window
+add_executable(hello_window "examples/hello_window.cpp")
+target_link_libraries(hello_window ${LIB_NAME})
 
 # Set EXAMPLE1 to be the default startup project in visual studio
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EXAMPLE1})
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hello_window)
 
-set(EXAMPLE2 sprites)
-add_executable(${EXAMPLE2} "examples/sprites.cpp")
-target_link_libraries(${EXAMPLE2} ${LIB_NAME})
-target_include_directories(${EXAMPLE2} PUBLIC "src")
+#Example 2 - sprites
+add_executable(sprites "examples/sprites.cpp")
+target_link_libraries(sprites ${LIB_NAME})
 
-set(EXAMPLE3 text)
-add_executable(${EXAMPLE3} "examples/text.cpp")
-target_link_libraries(${EXAMPLE3} ${LIB_NAME})
-target_include_directories(${EXAMPLE3} PUBLIC "src")
+#Example 3 - text
+add_executable(text "examples/text.cpp")
+target_link_libraries(text ${LIB_NAME})
 
-#Copy resources into proj directory where projets can read them
+#Copy resources into proj directory where projects can read them
 file(COPY ${PROJECT_SOURCE_DIR}/res/ DESTINATION ${PROJECT_BINARY_DIR}/res/)
 
