@@ -649,11 +649,6 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 		//Create character and store in map
 		FontCharacter character;
 
-		float xpos;
-		float ypos;
-		stbtt_aligned_quad quad;
-		stbtt_GetPackedQuad(packedChars, atlasWidth, atlasHeight, c, &xpos, &ypos, &quad, 0);
-
 		character.uvMin = vec2((float)packedChar.x0 / (float)atlasWidth, (float)packedChar.y0 / (float)atlasHeight);
 		character.uvMax = vec2((float)packedChar.x1 / (float)atlasWidth, (float)packedChar.y1 / (float)atlasHeight);
 
