@@ -648,19 +648,16 @@ Font* LoadFont(const char* filepath, u32 pixelHeight)
 
 		//Create character and store in map
 		FontCharacter character;
-
 		character.uvMin = vec2((float)packedChar.x0 / (float)atlasWidth, (float)packedChar.y0 / (float)atlasHeight);
 		character.uvMax = vec2((float)packedChar.x1 / (float)atlasWidth, (float)packedChar.y1 / (float)atlasHeight);
-
 		character.size = vec2(packedChar.xoff2 - packedChar.xoff, packedChar.yoff2 - packedChar.yoff);
-
 		character.bearing = vec2(packedChar.xoff, 1.f - packedChar.yoff);
 		character.advance = packedChar.xadvance;
 
 		font->characters.insert(std::pair<i32, FontCharacter>(c, character));
 	}
 
-	std::cout << "Successfully loaded font : @" << fullPath << "!\n";
+	std::cout << "Successfully loaded font : @" << fullPath << "\n";
 
 	delete[] fontBuffer;
 	delete[] pixelBuffer;
