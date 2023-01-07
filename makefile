@@ -30,7 +30,7 @@ BINGUS_SRCS =	$(SOURCE_PATH)/bingus.cpp \
 				$(SOURCE_PATH)/renderer.cpp \
 				$(SOURCE_PATH)/shader.cpp \
 				$(SOURCE_PATH)/texture.cpp \
-				$(SOURCE_PATH)/ui.cpp \
+				$(SOURCE_PATH)/gui.cpp \
 				$(SOURCE_PATH)/window.cpp
 
 #BINGUS_SRCS = $(shell find $(SOURCE_PATH) -name '*.cpp' -or -name '*.c')
@@ -44,7 +44,7 @@ BINGUS_OBJS =	bingus.o \
 				renderer.o \
 				shader.o \
 				texture.o \
-				ui.o \
+				gui.o \
 				window.o
 
 #BINGUS_OBJS = $(BINGUS_SRCS:%=$(OUTPUT_PATH)%.o)
@@ -86,7 +86,7 @@ shader.o: $(SOURCE_PATH)/shader.cpp
 texture.o: $(SOURCE_PATH)/texture.cpp
 	$(CC) $(CFLAGS) $< -c $(BINGUS_INCLUDES)
 
-ui.o: $(SOURCE_PATH)/ui.cpp
+ui.o: $(SOURCE_PATH)/gui.cpp
 	$(CC) $(CFLAGS) $< -c $(BINGUS_INCLUDES)
 
 window.o: $(SOURCE_PATH)/window.cpp

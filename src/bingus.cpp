@@ -104,7 +104,7 @@ void BingusInit()
 {
 	InitializeRenderer();
 	InitializeInput(GetWindow());
-	InitializeUI();
+	InitializeGUI();
 	InitializeDebug();
 	exitGameCalled = false;
 	clearColor = vec4(0, 0, 0, 1);
@@ -125,7 +125,7 @@ void RunGame()
 		dt = gameTime - prevTime;
 
 		UpdateInput(GetWindow(), dt);
-		UpdateUI();
+		BeginGUI();
 
 		//Update timers
 		for (auto it = timers.begin(); it != timers.end(); it++)
@@ -152,7 +152,7 @@ void RunGame()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		if (drawEvent != nullptr) drawEvent();
 		DrawDebug(dt);
-		DrawUI();
+		DrawGUI();
 
 		glfwSwapBuffers(GetWindow());
 		glfwPollEvents();

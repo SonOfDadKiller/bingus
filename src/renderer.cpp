@@ -49,12 +49,21 @@ void InitializeRenderer()
 	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
 }
 
-SpriteSequence::SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing)
+SpriteSequence::SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing)
 {
-	this->uvStartPosition = uvStartPosition;
-	this->uvRectSize = uvRectSize;
-	this->count = count;
-	this->spacing = spacing;
+	for (u32 frameIndex = 0; frameIndex < count; frameIndex++)
+	{
+		SpriteSequenceFrame frame(Edges::None(),
+			Rect(vec2(firstFramePosition.x + frameIndex * frameSize.x, firstFramePosition.y),
+				 vec2(firstFramePosition.x + (frameIndex + 1) * frameSize.x, firstFramePosition.y + frameSize.y)));
+
+		frames.push_back(frame);
+	}
+}
+
+SpriteSequence::SpriteSequence(std::vector<SpriteSequenceFrame> frames)
+{
+	this->frames = frames;
 }
 
 SpriteSheet::SpriteSheet(const char* texturePath)
@@ -78,7 +87,7 @@ SpriteAnimator::SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, flo
 
 u32 SpriteAnimator::GetFrame()
 {
-	return (u32)timer->timeElapsed % sequence->count;
+	return (u32)timer->timeElapsed % sequence->frames.size();
 }
 
 void SpriteAnimator::SetSequence(std::string name)
@@ -97,6 +106,7 @@ Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color,
 	this->pivot = pivot;
 	this->color = color;
 	this->animator = nullptr;
+	this->nineSliceMargin = Edges::None();
 }
 
 Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
@@ -109,6 +119,7 @@ Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color,
 	this->animator = animator;
 	this->sequenceFrame = 0;
 	this->sequence = nullptr;
+	this->nineSliceMargin = Edges::None();
 }
 
 Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
@@ -161,12 +172,12 @@ VertBuffer::VertBuffer(const std::vector<u32> attributes)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
 	//Set up vertex attributes
-	vertexTotalComponentCount = 0;
+	vertexComponentCount = 0;
 	vertexByteWidth = 0;
 
 	for (auto it = this->attributes.begin(); it != this->attributes.end(); it++)
 	{
-		vertexTotalComponentCount += it->componentCount;
+		vertexComponentCount += it->componentCount;
 		vertexByteWidth += it->componentCount * it->componentWidth;
 	}
 
@@ -212,7 +223,7 @@ void RenderBatch::GrowVertexCapacity(size_t capacity)
 	if (capacity > vertexCapacity)
 	{
 		vertexCapacity = capacity;
-		vertexData.resize(capacity * buffer.vertexTotalComponentCount);
+		vertexData.resize(capacity * buffer.vertexComponentCount);
 	}
 }
 
@@ -262,8 +273,6 @@ SpriteBatch::SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spri
 
 void SpriteBatch::Init()
 {
-	spriteIndex = 0;
-
 	//Get vertex attribute offsets
 	positionAttrib = buffer.GetAttribute(VERTEX_POS);
 	uvAttrib = buffer.GetAttribute(VERTEX_UV);
@@ -275,7 +284,6 @@ void SpriteBatch::Init()
 void SpriteBatch::Clear()
 {
 	RenderBatch::Clear();
-	spriteIndex = 0;
 }
 
 void SpriteBatch::PushSprite(const Sprite& sprite)
@@ -283,7 +291,12 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	LazyInit();
 	bufferDirty = true;
 
-	assert(positionAttrib != nullptr);
+	if (sprite.nineSliceMargin.top != 0.f && sprite.nineSliceMargin.right != 0.f
+		&& sprite.nineSliceMargin.bottom != 0.f && sprite.nineSliceMargin.left != 0.f)
+	{
+		PushSprite9Slice(sprite);
+		return;
+	}
 
 	//Vertices
 	vec3 cornerPositions[] = {
@@ -319,15 +332,14 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	cornerPositions[3] += sprite.position;
 
 	//Push sprite data
-	//TODO: Figure out when to grow verts... it should only happen here if not coming from PushSprites()
-	GrowVertexCapacity((size_t)vertexCount + 4);
-	vertexCount += 4;
+	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
+	for (u32 vert = 0; vert < 4 * buffer.vertexComponentCount; vert++) vertexData.push_back(0.f);
 
-	u32 baseOffset = spriteIndex * buffer.vertexTotalComponentCount * 4;
+	u32 baseOffset = vertexCount * buffer.vertexComponentCount;
 
 	for (u32 vert = 0; vert < 4; vert++)
 	{
-		u32 vertOffset = baseOffset + vert * buffer.vertexTotalComponentCount;
+		u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
 		
 		//Position
 		u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
@@ -336,9 +348,7 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 
 	if (uvAttrib != nullptr)
 	{
-		//Calculate uvs based on optional sprite sequence and animator
-		vec2 cornerUVs[4];
-
+		//Get sequence from animator, or fall back to sprite.sequence and sprite.frame
 		SpriteSequence* sequence = nullptr;
 		u32 frame;
 
@@ -352,28 +362,28 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 			sequence = sprite.sequence;
 			frame = sprite.sequenceFrame;
 		}
+
+		//Calculate UVs
+		vec2 uvMin = vec2(0);
+		vec2 uvMax = vec2(1);
 		
 		if (sequence != nullptr)
 		{
-			vec2 uvStartPos = sequence->uvStartPosition / texture.size;
-			vec2 uvFrameSize = sequence->uvRectSize / texture.size;
-			vec2 framePosition = uvStartPos + vec2(uvFrameSize.x * frame, 0);
-			cornerUVs[0] = framePosition; //bottom-left
-			cornerUVs[1] = vec2(framePosition.x, framePosition.y + uvFrameSize.y); //top-left
-			cornerUVs[2] = framePosition + uvFrameSize; //top-right
-			cornerUVs[3] = vec2(framePosition.x + uvFrameSize.x, 0.f); //bottom-right
+			Rect frameRect = sequence->frames[frame].rect;
+			uvMin = frameRect.min / texture.size;
+			uvMax = frameRect.max / texture.size;
 		}
-		else
-		{
-			cornerUVs[0] = vec2(0, 0); //bottom-left
-			cornerUVs[1] = vec2(0, 1); //top-left
-			cornerUVs[2] = vec2(1, 1); //top-right
-			cornerUVs[3] = vec2(1, 0); //bottom-right
-		}
+
+		vec2 cornerUVs[] = {
+			uvMin,
+			vec2(uvMin.x, uvMax.y),
+			uvMax,
+			vec2(uvMax.x, uvMin.y)
+		};
 
 		for (u32 vert = 0; vert < 4; vert++)
 		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexTotalComponentCount;
+			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
 			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
 			memcpy(vertexData.data() + uvOffset, &cornerUVs[vert], sizeof(vec2));
 		}
@@ -383,20 +393,173 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	{
 		for (u32 vert = 0; vert < 4; vert++)
 		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexTotalComponentCount;
+			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
 			u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
 			memcpy(vertexData.data() + colorOffset, &sprite.color, sizeof(vec4));
 		}
 	}
 
 	//Indices
-	u32 quadIndex = (spriteIndex++) * 4;
+	u32 quadIndex = vertexCount;
 	indices.push_back(quadIndex);
 	indices.push_back(quadIndex + 1);
 	indices.push_back(quadIndex + 2);
 	indices.push_back(quadIndex + 2);
 	indices.push_back(quadIndex + 3);
 	indices.push_back(quadIndex);
+
+	//Update vertex count, this is kinda important
+	vertexCount += 4;
+}
+
+void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
+{
+
+	//Get frame early 
+	//TODO: Per-side nine slice scaling
+
+	//Vertices
+	vec3 vertPositions[] = {
+		//First row
+		vec3(0,											0, 0),
+		vec3(sprite.nineSliceMargin,					0, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin,	0, 0),
+		vec3(sprite.size.x,								0, 0),
+		//Second row
+		vec3(0,											sprite.nineSliceMargin, 0),
+		vec3(sprite.nineSliceMargin,					sprite.nineSliceMargin, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.nineSliceMargin, 0),
+		vec3(sprite.size.x,								sprite.nineSliceMargin, 0),
+		//Third row
+		vec3(0,											sprite.size.y - sprite.nineSliceMargin, 0),
+		vec3(sprite.nineSliceMargin,					sprite.size.y - sprite.nineSliceMargin, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.size.y - sprite.nineSliceMargin, 0),
+		vec3(sprite.size.x,								sprite.size.y - sprite.nineSliceMargin, 0),
+		//Fourth row
+		vec3(0,											sprite.size.y, 0),
+		vec3(sprite.nineSliceMargin,					sprite.size.y, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.size.y, 0),
+		vec3(sprite.size.x,								sprite.size.y, 0)
+	};
+
+	if (sprite.pivot != BOTTOM_LEFT)
+	{
+		vec2 offset2 = sprite.size * sprite.pivot;
+		vec3 offset3 = vec3(offset2, 0.f);
+
+		//This feels dumb...
+		for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] -= offset3;
+	}
+
+	if (sprite.rotation != 0.f)
+	{
+		glm::quat rotation = glm::angleAxis(glm::radians(sprite.rotation), vec3(0.f, 0.f, 1.f));
+		for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] = rotation * vertPositions[vert];
+	}
+
+	for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] += sprite.position;
+
+	//Push sprite data
+	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
+	for (u32 vert = 0; vert < 16 * buffer.vertexComponentCount; vert++) vertexData.push_back(0.f);
+
+	u32 baseOffset = vertexCount * buffer.vertexComponentCount;
+
+	for (u32 vert = 0; vert < 16; vert++)
+	{
+		u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
+
+		//Position
+		u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
+		memcpy(vertexData.data() + positionOffset, &vertPositions[vert], sizeof(vec3));
+	}
+
+	if (uvAttrib != nullptr)
+	{
+		//Get sequence from animator, or fall back to sprite.sequence and sprite.frame
+		SpriteSequence* sequence = nullptr;
+		u32 frame;
+
+		if (sprite.animator != nullptr)
+		{
+			sequence = sprite.animator->sequence;
+			frame = sprite.animator->GetFrame();
+		}
+		else if (sprite.sequence != nullptr)
+		{
+			sequence = sprite.sequence;
+			frame = sprite.sequenceFrame;
+		}
+
+		//Calculate UVs
+		vec2 uvMin = vec2(0);
+		vec2 uvMax = vec2(1);
+		vec2 uvSlice = vec2(sprite.nineSliceSample / texture.size.x, sprite.nineSliceSample / texture.size.y);
+
+		if (sequence != nullptr)
+		{
+			Rect frameRect = sequence->frames[frame].rect;
+			uvMin = frameRect.min / texture.size;
+			uvMax = frameRect.max / texture.size;
+		}
+
+		//First row
+		vec2 vertUVs[16];
+		vertUVs[0] = uvMin;
+		vertUVs[1] = vec2(uvMin.x + uvSlice.x, uvMin.y);
+		vertUVs[2] = vec2(uvMax.x - uvSlice.x, uvMin.y);
+		vertUVs[3] = vec2(uvMax.x, uvMin.y);
+		//Second row
+		vertUVs[4] = vec2(uvMin.x, uvMin.y + uvSlice.y);
+		vertUVs[5] = vec2(uvMin.x + uvSlice.x, uvMin.y + uvSlice.y);
+		vertUVs[6] = vec2(uvMax.x - uvSlice.x, uvMin.y + uvSlice.y);
+		vertUVs[7] = vec2(uvMax.x, uvMin.y + uvSlice.y);
+		//Third row
+		vertUVs[8] = vec2(uvMin.x, uvMax.y - uvSlice.y);
+		vertUVs[9] = vec2(uvMin.x + uvSlice.x, uvMax.y - uvSlice.y);
+		vertUVs[10] = vec2(uvMax.x - uvSlice.x, uvMax.y - uvSlice.y);
+		vertUVs[11] = vec2(uvMax.x, uvMax.y - uvSlice.y);
+		//Fourth row
+		vertUVs[12] = vec2(uvMin.x, uvMax.y);
+		vertUVs[13] = vec2(uvMin.x + uvSlice.x, uvMax.y);
+		vertUVs[14] = vec2(uvMax.x - uvSlice.x, uvMax.y);
+		vertUVs[15] = vec2(uvMax.x, uvMax.y);
+
+		for (u32 vert = 0; vert < 16; vert++)
+		{
+			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
+			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
+			memcpy(vertexData.data() + uvOffset, &vertUVs[vert], sizeof(vec2));
+		}
+	}
+
+	if (colorAttrib != nullptr)
+	{
+		for (u32 vert = 0; vert < 16; vert++)
+		{
+			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
+			u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
+			memcpy(vertexData.data() + colorOffset, &sprite.color, sizeof(vec4));
+		}
+	}
+
+	//Indices
+	for (size_t quadY = 0; quadY < 3; quadY++)
+	{
+		for (size_t quadX = 0; quadX < 3; quadX++)
+		{
+			size_t offset = vertexCount + quadX + quadY * 4;
+			indices.push_back(offset);
+			indices.push_back(offset + 1);
+			indices.push_back(offset + 5);
+			indices.push_back(offset + 5);
+			indices.push_back(offset + 4);
+			indices.push_back(offset);
+		}
+	}
+
+	//Update vertex count, this is kinda important
+	vertexCount += 16;
 }
 
 void SpriteBatch::PushSprites(const std::vector<Sprite*>& sprites)
@@ -551,11 +714,11 @@ void TextBatch::PushText(const Text& text)
 			glyphRect.character->uvMax
 		};
 
-		u32 baseOffset = (glyphIndex * 4 * buffer.vertexTotalComponentCount);
+		u32 baseOffset = (glyphIndex * 4 * buffer.vertexComponentCount);
 
 		for (u32 vertIndex = 0; vertIndex < 4; vertIndex++)
 		{
-			u32 vertOffset = baseOffset + vertIndex * buffer.vertexTotalComponentCount;
+			u32 vertOffset = baseOffset + vertIndex * buffer.vertexComponentCount;
 			u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
 			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
 			memcpy(vertexData.data() + positionOffset, &positions[vertIndex], sizeof(vec3));

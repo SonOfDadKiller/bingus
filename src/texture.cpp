@@ -34,6 +34,8 @@ Texture::Texture(const char* filePath, i32 wrapMode)
 	unsigned char* textureData = stbi_load(full_path.c_str(), &width, &height, &nrChannels, 0);
 	size = vec2(width, height);
 
+	//std::cout << "tex size: " << sizeof(textureData) << "\n";
+
 	//Detect format
 	unsigned int imageFormat = 0;
 

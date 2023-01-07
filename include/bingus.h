@@ -34,6 +34,22 @@ using glm::vec4;
 using glm::mat4;
 using glm::quat;
 
+struct Rect
+{
+	vec2 min, max;
+	Rect(vec2 min, vec2 max) : min(min), max(max) { }
+};
+
+struct Edges
+{
+	float top, right, bottom, left;
+	Edges() : Edges(0.f, 0.f, 0.f, 0.f) { }
+	Edges(float top, float right, float bottom, float left)
+		: top(top), right(right), bottom(bottom), left(left) { }
+	static Edges None() { return Edges(0.f, 0.f, 0.f, 0.f); }
+	static Edges All(float value) { return Edges(value, value, value, value); }
+};
+
 //Time tracking
 extern float avgFrameTime;
 extern i32 framesPerSecond;
@@ -151,15 +167,21 @@ void SetActiveShader(Shader* shader);
 #define BOTTOM_CENTER	vec2(0.5, 0.0)
 #define BOTTOM_RIGHT	vec2(1.0, 0.0)
 
+struct SpriteSequenceFrame
+{
+	Edges nineSliceSample;
+	Rect rect;
+	SpriteSequenceFrame(Edges nineSliceSample, Rect rect)
+		: nineSliceSample(nineSliceSample), rect(rect) { }
+};
+
 struct SpriteSequence
 {
-	vec2 uvStartPosition;
-	vec2 uvRectSize;
-	u32 count;
-	float spacing;
+	std::vector<SpriteSequenceFrame> frames;
 
 	SpriteSequence() { }
-	SpriteSequence(vec2 uvStartPosition, vec2 uvRectSize, u32 count, float spacing);
+	SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing);
+	SpriteSequence(std::vector<SpriteSequenceFrame> frames);
 };
 
 struct SpriteSheet
@@ -188,10 +210,11 @@ struct SpriteAnimator
 
 struct Sprite
 {
+	vec4 color;
+	Edges nineSliceMargin;
 	vec3 position;
 	vec2 size;
 	vec2 pivot;
-	vec4 color;
 	SpriteSequence* sequence;
 	SpriteAnimator* animator;
 	u32 sequenceFrame;
@@ -272,7 +295,7 @@ struct VertBuffer
 {
 	GLuint vao, vbo, ebo;
 	std::vector<VertAttrib> attributes;
-	u32 vertexTotalComponentCount;
+	u32 vertexComponentCount;
 	u32 vertexByteWidth;
 
 	VertBuffer() { }
@@ -313,7 +336,6 @@ struct SpriteBatch : RenderBatch
 	VertAttrib* positionAttrib;
 	VertAttrib* uvAttrib;
 	VertAttrib* colorAttrib;
-	u32 spriteIndex = 0;
 
 	SpriteBatch() { }
 	SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet);
@@ -321,6 +343,7 @@ struct SpriteBatch : RenderBatch
 	void Init() override;
 	void Clear() override;
 	void PushSprite(const Sprite& sprite);
+	void PushSprite9Slice(const Sprite& sprite);
 	void PushSprites(const std::vector<Sprite*>& sprites);
 	void PushSprites(const std::vector<Sprite>& sprites);
 	void PushSpritesReverse(const std::vector<Sprite*>& sprites);
@@ -494,16 +517,12 @@ void UpdateInput(GLFWwindow* window, float dt);
 InputState GetInputState(u32 key);
 
 //UI
-void InitializeUI();
-void SetUICanvasSize(vec2 size);
-void UpdateUI();
-void DrawUI();
+void InitializeGUI();
+void SetGUICanvasSize(vec2 size);
+void BeginGUI();
+void DrawGUI();
 
-struct UINode;
-
-extern UINode* canvas;
-
-struct UIMouseEvent
+struct GUIMouseEvent
 {
 	vec2 position;
 	InputState state;
@@ -517,84 +536,21 @@ struct UIMouseEvent
 //TODO: Scroll Rect
 //TODO: Radial Button
 
-struct UINode
+struct GUIWidget
 {
-	bool dirty;
-	UINode* parent;
-	vec2 position, screenPosition;
+	vec2 position;
 	vec2 size;
 	vec2 pivot;
 	vec2 anchor;
-	std::vector<struct UINode*> children;
-
-	UINode(vec2 position, vec2 size)
-		: UINode(canvas, position, size, vec2(0), vec2(0)) { }
-	UINode(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UINode(canvas, position, size, pivot, anchor) { }
-	UINode(UINode* parent, vec2 position, vec2 size)
-		: UINode(parent, position, size, vec2(0), vec2(0)) { }
-	UINode(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
-
-	virtual void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent);
-	virtual void Draw();
-	void NormalizeRect(vec2& nPos, vec2& nSize);
 };
 
-struct UIImage : UINode
-{
-	vec4 color;
-	SpriteSequence* sequence;
-	u32 frame;
+void GUIWidgetBegin(vec2 position, vec2 size, vec2 pivot, vec2 anchor);
+void GUIWidgetEnd();
+void GUIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, u32 frame);
+void GUIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor, std::string text, float fontSize, Font* font, vec4 color, vec2 alignment);
+bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eventState, vec4 color);
+bool GUITickbox(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, bool state);
 
-	UIImage(vec2 position, vec2 size)
-		: UIImage(canvas, position, size, vec2(0), vec2(0)) { }
-	UIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor)
-		: UIImage(canvas, position, size, pivot, anchor) { }
-	UIImage(UINode* parent, vec2 position, vec2 size)
-		: UIImage(parent, position, size, vec2(0), vec2(0)) { }
-	UIImage(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
+void GUISetSpritesheet(SpriteSheet* sheet);
 
-	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
-	void Draw() override;
-};
-
-struct UIText : UINode
-{
-	float fontSize;
-	vec4 color;
-	Font* font;
-	vec2 alignment;
-	std::string data;
-
-	UIText(vec2 position, vec2 size) : UIText(canvas, position, size, vec2(0), vec2(0)) { }
-	UIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIText(canvas, position, size, pivot, anchor) { }
-	UIText(UINode* parent, vec2 position, vec2 size) : UIText(parent, position, size, vec2(0), vec2(0)) { }
-	UIText(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
-
-	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
-	void Draw() override;
-};
-
-enum ButtonState { RELEASED, HOVER, PRESSED, HELD };
-
-struct UIButton : UINode
-{
-	vec4 color;
-	SpriteSequence* sequence;
-	ButtonState state;
-	u32 frame;
-	
-	std::function<void(void)> onHover;
-	std::function<void(void)> onPress;
-	std::function<void(void)> onHold;
-	std::function<void(void)> onRelease;
-
-	UIButton(vec2 position, vec2 size) : UIButton(canvas, position, size, vec2(0), vec2(0)) { }
-	UIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor) : UIButton(canvas, position, size, pivot, anchor) { }
-	UIButton(UINode* parent, vec2 position, vec2 size) : UIButton(parent, position, size, vec2(0), vec2(0)) { }
-	UIButton(UINode* parent, vec2 position, vec2 size, vec2 pivot, vec2 anchor);
-
-	void Step(vec2 parentPosition, vec2 parentSize, UIMouseEvent _mouseEvent) override;
-	void Draw() override;
-};
 

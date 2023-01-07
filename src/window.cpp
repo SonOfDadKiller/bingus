@@ -63,7 +63,7 @@ void HandleWindowSizeChange(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 	windowSize = vec2(width, height);
 	SetCameraSize(GetCameraSize(), true);
-	SetUICanvasSize(windowSize);
+	SetGUICanvasSize(windowSize);
 }
 
 void HandeMouseMove(GLFWwindow* window, double mouseX, double mouseY)

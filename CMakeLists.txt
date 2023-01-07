@@ -14,7 +14,7 @@ SET(BINGUS_SOURCE
 	"src/renderer.cpp"
 	"src/window.cpp"
 	"src/input.cpp"
-	"src/ui.cpp"
+	"src/gui.cpp"
 	"src/entity.cpp"
 	"src/debug.cpp"
 )
@@ -56,6 +56,10 @@ if (${examples})
 	#Example 3 - text
 	add_executable(text "examples/text.cpp")
 	target_link_libraries(text ${LIB_NAME})
+
+	#Example 4 - gui
+	add_executable(gui "examples/gui.cpp")
+	target_link_libraries(gui ${LIB_NAME})
 
 endif()
 
