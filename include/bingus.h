@@ -220,6 +220,7 @@ struct Sprite
 	u32 sequenceFrame;
 	float rotation;
 
+	//I may have gone overboard with the constructors here
 	Sprite(vec3 position, vec2 size)
 		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
 	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color)
@@ -228,11 +229,26 @@ struct Sprite
 		: Sprite(position, size, pivot, rotation, color, nullptr, 0) { }
 	Sprite(vec3 position, vec2 size, SpriteSequence* sequence, u32 frame)
 		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), sequence, frame) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame);
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
+		: Sprite(position, size, pivot, Edges::None(), rotation, color, sequence, frame, nullptr) { }
+	
+	//With sequence
+	Sprite(vec3 position, vec2 size, Edges nineSliceMargin)
+		: Sprite(position, size, Edges::None(), BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
+	Sprite(vec3 position, vec2 size, Edges nineSliceMargin, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
+		: Sprite(position, size, pivot, nineSliceMargin, rotation, color, sequence, frame, nullptr) { }
+	Sprite(vec3 position, vec2 size, Edges nineSliceMargin, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
+		: Sprite(position, size, pivot, nineSliceMargin, rotation, color, nullptr, 0, animator) { }
 
+	//With animator
 	Sprite(vec3 position, vec2 size, SpriteAnimator* animator)
 		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), animator) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator);
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
+		: Sprite(position, size, pivot, Edges::None(), rotation, color, nullptr, 0, animator) { }
+
+	//All vars
+	Sprite(vec3 position, vec2 size, vec2 pivot, Edges nineSliceMargin, float rotation, 
+		vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
 };
 
 struct FontCharacter

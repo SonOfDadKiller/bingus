@@ -38,7 +38,7 @@ void Update(float dt)
 		GUIImage(vec2(0), vec2(400, 500), TOP_LEFT, TOP_LEFT, vec4(0.7f, 0.1, 0.1, 0.8f), 0);
 	GUIWidgetEnd();*/
 	
-	if (GUIButton(vec2(22, -122), vec2(300.f, 300.f) + vec2(200.f) * sin(GetTime()), TOP_LEFT, TOP_LEFT, PRESS, vec4(1, 0.4f, 0.6f, 1)))
+	if (GUIButton(vec2(22, -122), vec2(300.f, 300.f) + vec2(sin(GetTime()), cos(GetTime())) * 200.f, TOP_LEFT, TOP_LEFT, PRESS, vec4(1, 0.4f, 0.6f, 1)))
 	{
 		std::cout << "Button Pressed!\n";
 	}

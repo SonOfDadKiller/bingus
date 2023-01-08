@@ -77,7 +77,7 @@ void Draw()
 	testBatch.Clear();
 	
 	Sprite sprite = Sprite(vec3(-0.7f, -0.85f, 0), vec2(1.f) + vec2(cos(GetTime()), sin(GetTime())) * 0.8f, &testSheet.sequences["ui"], 1);
-	//sprite.nineSliceMargin = 0.02f;
+	sprite.nineSliceMargin = Edges::All(0.02f);
 	//sprite.nineSliceSample = 7;
 	testBatch.PushSprite(sprite);
 

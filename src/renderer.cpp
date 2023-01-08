@@ -96,30 +96,18 @@ void SpriteAnimator::SetSequence(std::string name)
 	this->timer->Reset();
 }
 
-Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
+Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, Edges nineSliceMargin, float rotation,
+	vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator)
 {
 	this->position = position;
 	this->size = size;
+	this->pivot = pivot;
+	this->nineSliceMargin = nineSliceMargin;
+	this->rotation = rotation;
+	this->color = color;
 	this->sequence = sequence;
 	this->sequenceFrame = frame;
-	this->rotation = rotation;
-	this->pivot = pivot;
-	this->color = color;
-	this->animator = nullptr;
-	this->nineSliceMargin = Edges::None();
-}
-
-Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
-{
-	this->position = position;
-	this->size = size;
-	this->pivot = pivot;
-	this->rotation = rotation;
-	this->color = color;
 	this->animator = animator;
-	this->sequenceFrame = 0;
-	this->sequence = nullptr;
-	this->nineSliceMargin = Edges::None();
 }
 
 Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
@@ -414,32 +402,46 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 
 void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 {
+	//Get frame early, so we can use the 9 slice data
+	SpriteSequence* sequence = nullptr;
+	SpriteSequenceFrame* frame;
 
-	//Get frame early 
+	if (sprite.animator != nullptr)
+	{
+		sequence = sprite.animator->sequence;
+		frame = &sequence->frames[sprite.animator->GetFrame()];
+	}
+	else if (sprite.sequence != nullptr)
+	{
+		sequence = sprite.sequence;
+		frame = &sequence->frames[sprite.sequenceFrame];
+	}
+
+	assert(frame != nullptr);
 	//TODO: Per-side nine slice scaling
 
 	//Vertices
 	vec3 vertPositions[] = {
 		//First row
-		vec3(0,											0, 0),
-		vec3(sprite.nineSliceMargin,					0, 0),
-		vec3(sprite.size.x - sprite.nineSliceMargin,	0, 0),
-		vec3(sprite.size.x,								0, 0),
+		vec3(0,												0, 0),
+		vec3(sprite.nineSliceMargin.left,					0, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin.right,	0, 0),
+		vec3(sprite.size.x,									0, 0),
 		//Second row
-		vec3(0,											sprite.nineSliceMargin, 0),
-		vec3(sprite.nineSliceMargin,					sprite.nineSliceMargin, 0),
-		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.nineSliceMargin, 0),
-		vec3(sprite.size.x,								sprite.nineSliceMargin, 0),
+		vec3(0,												sprite.nineSliceMargin.top, 0),
+		vec3(sprite.nineSliceMargin.left,					sprite.nineSliceMargin.top, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin.right,	sprite.nineSliceMargin.top, 0),
+		vec3(sprite.size.x,									sprite.nineSliceMargin.top, 0),
 		//Third row
-		vec3(0,											sprite.size.y - sprite.nineSliceMargin, 0),
-		vec3(sprite.nineSliceMargin,					sprite.size.y - sprite.nineSliceMargin, 0),
-		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.size.y - sprite.nineSliceMargin, 0),
-		vec3(sprite.size.x,								sprite.size.y - sprite.nineSliceMargin, 0),
+		vec3(0,												sprite.size.y - sprite.nineSliceMargin.bottom, 0),
+		vec3(sprite.nineSliceMargin.left,					sprite.size.y - sprite.nineSliceMargin.bottom, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin.right,	sprite.size.y - sprite.nineSliceMargin.bottom, 0),
+		vec3(sprite.size.x,									sprite.size.y - sprite.nineSliceMargin.bottom, 0),
 		//Fourth row
-		vec3(0,											sprite.size.y, 0),
-		vec3(sprite.nineSliceMargin,					sprite.size.y, 0),
-		vec3(sprite.size.x - sprite.nineSliceMargin,	sprite.size.y, 0),
-		vec3(sprite.size.x,								sprite.size.y, 0)
+		vec3(0,												sprite.size.y, 0),
+		vec3(sprite.nineSliceMargin.left,					sprite.size.y, 0),
+		vec3(sprite.size.x - sprite.nineSliceMargin.right,	sprite.size.y, 0),
+		vec3(sprite.size.x,									sprite.size.y, 0)
 	};
 
 	if (sprite.pivot != BOTTOM_LEFT)
@@ -474,56 +476,46 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 		memcpy(vertexData.data() + positionOffset, &vertPositions[vert], sizeof(vec3));
 	}
 
+	//NOTE: UVs should probably be non-optional, as theres no point when using a 9 slice
+
 	if (uvAttrib != nullptr)
 	{
-		//Get sequence from animator, or fall back to sprite.sequence and sprite.frame
-		SpriteSequence* sequence = nullptr;
-		u32 frame;
-
-		if (sprite.animator != nullptr)
-		{
-			sequence = sprite.animator->sequence;
-			frame = sprite.animator->GetFrame();
-		}
-		else if (sprite.sequence != nullptr)
-		{
-			sequence = sprite.sequence;
-			frame = sprite.sequenceFrame;
-		}
-
 		//Calculate UVs
 		vec2 uvMin = vec2(0);
 		vec2 uvMax = vec2(1);
-		vec2 uvSlice = vec2(sprite.nineSliceSample / texture.size.x, sprite.nineSliceSample / texture.size.y);
+		Edges scaledUVEdges = Edges(frame->nineSliceSample.top / texture.size.y,
+									frame->nineSliceSample.right / texture.size.x,
+									frame->nineSliceSample.bottom / texture.size.y,
+									frame->nineSliceSample.left / texture.size.x);
+		//vec2 uvSlice = vec2(sprite.nineSliceSample / texture.size.x, sprite.nineSliceSample / texture.size.y);
 
-		if (sequence != nullptr)
+		if (frame != nullptr)
 		{
-			Rect frameRect = sequence->frames[frame].rect;
-			uvMin = frameRect.min / texture.size;
-			uvMax = frameRect.max / texture.size;
+			uvMin = frame->rect.min / texture.size;
+			uvMax = frame->rect.max / texture.size;
 		}
 
 		//First row
 		vec2 vertUVs[16];
 		vertUVs[0] = uvMin;
-		vertUVs[1] = vec2(uvMin.x + uvSlice.x, uvMin.y);
-		vertUVs[2] = vec2(uvMax.x - uvSlice.x, uvMin.y);
+		vertUVs[1] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y);
+		vertUVs[2] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y);
 		vertUVs[3] = vec2(uvMax.x, uvMin.y);
 		//Second row
-		vertUVs[4] = vec2(uvMin.x, uvMin.y + uvSlice.y);
-		vertUVs[5] = vec2(uvMin.x + uvSlice.x, uvMin.y + uvSlice.y);
-		vertUVs[6] = vec2(uvMax.x - uvSlice.x, uvMin.y + uvSlice.y);
-		vertUVs[7] = vec2(uvMax.x, uvMin.y + uvSlice.y);
+		vertUVs[4] = vec2(uvMin.x, uvMin.y + scaledUVEdges.top);
+		vertUVs[5] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y + scaledUVEdges.top);
+		vertUVs[6] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y + scaledUVEdges.top);
+		vertUVs[7] = vec2(uvMax.x, uvMin.y + scaledUVEdges.top);
 		//Third row
-		vertUVs[8] = vec2(uvMin.x, uvMax.y - uvSlice.y);
-		vertUVs[9] = vec2(uvMin.x + uvSlice.x, uvMax.y - uvSlice.y);
-		vertUVs[10] = vec2(uvMax.x - uvSlice.x, uvMax.y - uvSlice.y);
-		vertUVs[11] = vec2(uvMax.x, uvMax.y - uvSlice.y);
+		vertUVs[8] = vec2(uvMin.x, uvMax.y - scaledUVEdges.bottom);
+		vertUVs[9] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y - scaledUVEdges.bottom);
+		vertUVs[10] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y - scaledUVEdges.bottom);
+		vertUVs[11] = vec2(uvMax.x, uvMax.y - scaledUVEdges.bottom);
 		//Fourth row
 		vertUVs[12] = vec2(uvMin.x, uvMax.y);
-		vertUVs[13] = vec2(uvMin.x + uvSlice.x, uvMax.y);
-		vertUVs[14] = vec2(uvMax.x - uvSlice.x, uvMax.y);
-		vertUVs[15] = vec2(uvMax.x, uvMax.y);
+		vertUVs[13] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y);
+		vertUVs[14] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y);
+		vertUVs[15] = uvMax;
 
 		for (u32 vert = 0; vert < 16; vert++)
 		{

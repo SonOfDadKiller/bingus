@@ -5,6 +5,7 @@
 static SpriteSheet spriteSheet;
 static SpriteBatch spriteBatch;
 static TextBatch textBatch;
+static SpriteSequence* spriteSequence;
 
 static GUIWidget canvas;
 
@@ -14,8 +15,23 @@ static std::vector<GUIWidget> widgetStack;
 
 void InitializeGUI()
 {
-	spriteSheet = SpriteSheet("ui.png");
-	spriteSheet.sequences["ui"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
+	vec2 uiFrameSize = vec2(128);
+	spriteSheet = SpriteSheet("ui.png", {
+		{ "ui", SpriteSequence({
+			SpriteSequenceFrame(Edges::None(), Rect(vec2(0, 0), vec2(uiFrameSize.x, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x, 0), vec2(uiFrameSize.x * 2.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 2.f, 0), vec2(uiFrameSize.x * 3.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 3.f, 0), vec2(uiFrameSize.x * 4.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 4.f, 0), vec2(uiFrameSize.x * 5.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 5.f, 0), vec2(uiFrameSize.x * 6.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 6.f, 0), vec2(uiFrameSize.x * 7.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 7.f, 0), vec2(uiFrameSize.x * 8.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 8.f, 0), vec2(uiFrameSize.x * 9.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 9.f, 0), vec2(uiFrameSize.x * 10.f, uiFrameSize.y))),
+		})}
+	});
+
+	spriteSequence = &spriteSheet.sequences["ui"];
 
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
@@ -103,7 +119,7 @@ void GUIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, u32
 {
 	CalculateLocalRect(position, size, pivot, anchor);
 	NormalizeRect(position, size);
-	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, &spriteSheet.sequences["ui"], frame));
+	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, frame));
 }
 
 void GUIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor, std::string text, float fontSize, Font* font, vec4 color, vec2 alignment)
@@ -124,9 +140,9 @@ bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eve
 
 	NormalizeRect(position, size);
 
-	Sprite sprite = Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, &spriteSheet.sequences["ui"], 1);
-	sprite.nineSliceMargin = 0.05f;
-	sprite.nineSliceSample = 7;
+	Sprite sprite = Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, 1);
+	vec2 margin = vec2(20) / GetWindowSize();
+	sprite.nineSliceMargin = Edges(margin.y, margin.x, margin.y, margin.x);
 
 	spriteBatch.PushSprite(sprite);
 	return pressed;
@@ -142,7 +158,7 @@ bool GUITickbox(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, b
 		&& mouseEvent.position.y > position.y && mouseEvent.position.y < position.y + size.y;
 
 	NormalizeRect(position, size);
-	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, &spriteSheet.sequences["ui"], state ? 7 : 1));
+	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, state ? 7 : 1));
 
 	return pressed ? !state : state;
 }
