@@ -52,10 +52,7 @@ void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 {
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
-		Sprite sprite = Sprite(position, vec2(size), 0, icon + 1);
-		sprite.color = color;
-		sprite.pivot = CENTER;
-		spriteBatch->PushSprite(sprite);
+		spriteBatch->PushSprite(Sprite(position, vec2(size), CENTER, 0.f, color, nullptr, 1));
 	}
 }
 
@@ -75,10 +72,7 @@ void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 	if (PointIntersectsCamera(vec2(from.x, from.y), 2.f) && PointIntersectsCamera(vec2(to.x, to.y), 2.f))
 	{
 		vec3 diff = to - from;
-		Sprite sprite = Sprite(from, vec2(glm::length(diff), thickness), 0, 0);
-		sprite.color = color;
-		sprite.pivot = CENTER_LEFT;
-		sprite.rotation = glm::degrees(atan2(diff.y, diff.x));
+		Sprite sprite = Sprite(from, vec2(glm::length(diff), thickness), CENTER_LEFT, glm::degrees(atan2(diff.y, diff.x)), color);
 		spriteBatch->PushSprite(sprite);
 	}
 }

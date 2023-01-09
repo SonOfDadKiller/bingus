@@ -220,35 +220,16 @@ struct Sprite
 	u32 sequenceFrame;
 	float rotation;
 
-	//I may have gone overboard with the constructors here
-	Sprite(vec3 position, vec2 size)
-		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, vec4 color)
-		: Sprite(position, size, pivot, 0.f, color, nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color)
-		: Sprite(position, size, pivot, rotation, color, nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, SpriteSequence* sequence, u32 frame)
-		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), sequence, frame) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
-		: Sprite(position, size, pivot, Edges::None(), rotation, color, sequence, frame, nullptr) { }
-	
-	//With sequence
-	Sprite(vec3 position, vec2 size, Edges nineSliceMargin)
-		: Sprite(position, size, Edges::None(), BOTTOM_LEFT, 0.f, vec4(1), nullptr, 0) { }
-	Sprite(vec3 position, vec2 size, Edges nineSliceMargin, vec2 pivot, float rotation, vec4 color, SpriteSequence* sequence, u32 frame)
-		: Sprite(position, size, pivot, nineSliceMargin, rotation, color, sequence, frame, nullptr) { }
-	Sprite(vec3 position, vec2 size, Edges nineSliceMargin, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
-		: Sprite(position, size, pivot, nineSliceMargin, rotation, color, nullptr, 0, animator) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
+		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr) { }
 
-	//With animator
-	Sprite(vec3 position, vec2 size, SpriteAnimator* animator)
-		: Sprite(position, size, BOTTOM_LEFT, 0.f, vec4(1), animator) { }
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, vec4 color, SpriteAnimator* animator)
-		: Sprite(position, size, pivot, Edges::None(), rotation, color, nullptr, 0, animator) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr) { }
 
-	//All vars
-	Sprite(vec3 position, vec2 size, vec2 pivot, Edges nineSliceMargin, float rotation, 
-		vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator) { }
+
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
 };
 
 struct FontCharacter
@@ -341,7 +322,7 @@ struct RenderBatch
 	void LazyInit();
 	virtual void Init() { };
 	virtual void Clear();
-	void GrowVertexCapacity(size_t capacity);
+	void GrowVertexCapacity(size_t capacity); //TODO: Try and remove this function
 	void SendVertsToGPUBuffer();
 	void Draw();
 };
@@ -379,6 +360,29 @@ struct TextBatch : RenderBatch
 
 	void Init() override;
 	void Clear() override;
+	void PushText(const Text& text);
+};
+
+struct AutoBatcher
+{
+	struct _Batch
+	{
+		SpriteBatch spriteBatch;
+		TextBatch textBatch;
+		float depth;
+	};
+
+	std::vector<_Batch> batches;
+	Shader spriteShader;
+	Shader textShader;
+	std::vector<u32> vertexAttributes;
+	SpriteSheet* spriteSheet;
+	Font* font;
+	bool sorted;
+
+	void Clear();
+	void Draw();
+	void PushSprite(const Sprite& sprite);
 	void PushText(const Text& text);
 };
 
@@ -532,7 +536,7 @@ void UnbindInputAction(u32 key, InputState state, u32 id);
 void UpdateInput(GLFWwindow* window, float dt);
 InputState GetInputState(u32 key);
 
-//UI
+//GUI
 void InitializeGUI();
 void SetGUICanvasSize(vec2 size);
 void BeginGUI();
@@ -544,8 +548,6 @@ struct GUIMouseEvent
 	InputState state;
 };
 
-//TODO: Replace with immediate UI?
-//TODO: Rethink Interface
 //TODO: Margin
 //TODO: Vertical/Horizontal Layout
 //TODO: Slider

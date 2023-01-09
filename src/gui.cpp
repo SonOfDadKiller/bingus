@@ -2,9 +2,8 @@
 
 #include <stack>
 
+static AutoBatcher batcher;
 static SpriteSheet spriteSheet;
-static SpriteBatch spriteBatch;
-static TextBatch textBatch;
 static SpriteSequence* spriteSequence;
 
 static GUIWidget canvas;
@@ -33,13 +32,11 @@ void InitializeGUI()
 
 	spriteSequence = &spriteSheet.sequences["ui"];
 
-	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-		&spriteSheet);
-
-	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
-		Fonts::arial);
+	batcher.vertexAttributes = { VERTEX_POS, VERTEX_UV, VERTEX_COLOR };
+	batcher.spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
+	batcher.spriteSheet = &spriteSheet;
+	batcher.textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
+	batcher.font = Fonts::arial;
 
 	canvas.position = vec2(0);
 	canvas.size = GetWindowSize();
@@ -76,16 +73,14 @@ void BeginGUI()
 	widgetStack.clear();
 	widgetStack.push_back(canvas);
 
-	spriteBatch.Clear();
-	textBatch.Clear();
+	batcher.Clear();
 }
 
 void DrawGUI()
 {
 	//TODO: This is wrong! I should figure out depth and ordering better - perhaps the solution to this
 	//actually belongs in the rendering API
-	spriteBatch.Draw();
-	textBatch.Draw();
+	batcher.Draw();
 }
 
 void NormalizeRect(vec2& position, vec2& size)
@@ -119,14 +114,14 @@ void GUIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, u32
 {
 	CalculateLocalRect(position, size, pivot, anchor);
 	NormalizeRect(position, size);
-	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, frame));
+	batcher.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, frame));
 }
 
 void GUIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor, std::string text, float fontSize, Font* font, vec4 color, vec2 alignment)
 {
 	CalculateLocalRect(position, size, pivot, anchor);
 	NormalizeRect(position, size);
-	textBatch.PushText(Text(text, vec3(position, 0.f), size, vec2(1440) / GetWindowSize(), alignment, fontSize, color, font));
+	batcher.PushText(Text(text, vec3(position, 0.f), size, vec2(1440) / GetWindowSize(), alignment, fontSize, color, font));
 }
 
 bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eventState, vec4 color)
@@ -144,7 +139,7 @@ bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eve
 	vec2 margin = vec2(20) / GetWindowSize();
 	sprite.nineSliceMargin = Edges(margin.y, margin.x, margin.y, margin.x);
 
-	spriteBatch.PushSprite(sprite);
+	batcher.PushSprite(sprite);
 	return pressed;
 }
 
@@ -158,7 +153,7 @@ bool GUITickbox(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, b
 		&& mouseEvent.position.y > position.y && mouseEvent.position.y < position.y + size.y;
 
 	NormalizeRect(position, size);
-	spriteBatch.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, state ? 7 : 1));
+	batcher.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, state ? 7 : 1));
 
 	return pressed ? !state : state;
 }

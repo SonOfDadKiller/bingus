@@ -1,7 +1,4 @@
 #include "bingus.h"
-#include <iostream>
-#include <map>
-
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -12,6 +9,9 @@
 #include <stb_truetype.h>
 
 #include <string>
+#include <iostream>
+#include <map>
+#include <algorithm>
 
 //TODO: Pull sprite ownership out of renderer
 static vec2 cameraPosition = vec2(-1, -1);
@@ -96,7 +96,7 @@ void SpriteAnimator::SetSequence(std::string name)
 	this->timer->Reset();
 }
 
-Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, Edges nineSliceMargin, float rotation,
+Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin,
 	vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator)
 {
 	this->position = position;
@@ -733,6 +733,92 @@ void TextBatch::PushText(const Text& text)
 	}
 }
 
+void AutoBatcher::Clear()
+{
+	for (auto it = batches.begin(); it != batches.end(); it++)
+	{
+		it->spriteBatch.Clear();
+		it->textBatch.Clear();
+	}
+
+	//batches.clear();
+
+	//Prevent sort on empty vector
+	sorted = true; 
+}
+
+void AutoBatcher::Draw()
+{
+	if (!sorted && batches.size() != 1)
+	{
+		std::sort(batches.begin(), batches.end(), [](_Batch a, _Batch b) { return a.depth > b.depth; });
+		sorted = true;
+	}
+
+	for (auto it = batches.begin(); it != batches.end(); it++)
+	{
+		it->spriteBatch.Draw();
+		it->textBatch.Draw();
+	}
+}
+
+void AutoBatcher::PushSprite(const Sprite& sprite)
+{
+	//NOTE: I should really consider just enabling depth testing and using that instead of different draw calls for depth
+
+	auto it = batches.begin();
+	while (it != batches.end())
+	{
+		if (sprite.position.z == it->depth && spriteShader.id == it->spriteBatch.shader.id && spriteSheet == it->spriteBatch.sheet)
+		{
+			break;
+		}
+	}
+
+	if (it == batches.end())
+	{
+		//Batch with the correct settings wasn't found, create one
+		batches.push_back({ SpriteBatch(VertBuffer(vertexAttributes), spriteShader, spriteSheet), 
+			TextBatch(VertBuffer(vertexAttributes), textShader, font), sprite.position.z });
+		batches[batches.size() - 1].spriteBatch.PushSprite(sprite);
+	}
+	else
+	{
+		it->spriteBatch.PushSprite(sprite);
+	}
+
+	
+	sorted = false;
+}
+
+void AutoBatcher::PushText(const Text& text)
+{
+	auto it = batches.begin();
+	while (it != batches.end())
+	{
+		if (text.position.z == it->depth && textShader.id == it->textBatch.shader.id && font == it->textBatch.font)
+		{
+			break;
+		}
+	}
+
+	if (it == batches.end())
+	{
+		//Batch with the correct settings wasn't found, create one
+		batches.push_back({ SpriteBatch(VertBuffer(vertexAttributes), spriteShader, spriteSheet), 
+			TextBatch(VertBuffer(vertexAttributes), textShader, font), text.position.z });
+		batches[batches.size() - 1].textBatch.PushText(text);
+	}
+	else
+	{
+		it->textBatch.PushText(text);
+	}
+
+	
+	sorted = false;
+}
+
+//TODO: Move this into a different file? Or move texture and shader loading into this file? Questions indeed...
 Font* LoadFont(const char* filepath, u32 pixelHeight)
 {
 	std::string fullPath = std::string(fontPath) + filepath;
