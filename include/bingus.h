@@ -537,6 +537,10 @@ void UpdateInput(GLFWwindow* window, float dt);
 InputState GetInputState(u32 key);
 
 //GUI
+extern SpriteSheet defaultGuiSpritesheet;
+extern SpriteSequence* defaultGuiSpriteSequence;
+extern Font* defaultGuiFont;
+
 void InitializeGUI();
 void SetGUICanvasSize(vec2 size);
 void BeginGUI();
@@ -554,21 +558,62 @@ struct GUIMouseEvent
 //TODO: Scroll Rect
 //TODO: Radial Button
 
-struct GUIWidget
+enum LayoutType { NONE, HORIZONTAL, VERTICAL };
+enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT };
+enum GUIImageSource { BLOCK, BOX };
+
+struct GUIWidgetVars
 {
-	vec2 position;
+	vec2 pos;
 	vec2 size;
 	vec2 pivot;
 	vec2 anchor;
+	Edges margin;
+
+	GUIImageSource source;
+	vec4 color;
+	Edges nineSliceMargin;
+
+	LayoutType layoutType;
+	float spacing;
+	bool stretch;
+	
+	std::string text;
+	vec2 textAlignment;
+	float fontSize;
+	Font* font;
+
+	GUIWidgetVars();
 };
 
-void GUIWidgetBegin(vec2 position, vec2 size, vec2 pivot, vec2 anchor);
-void GUIWidgetEnd();
-void GUIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, u32 frame);
-void GUIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor, std::string text, float fontSize, Font* font, vec4 color, vec2 alignment);
-bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eventState, vec4 color);
-bool GUITickbox(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, bool state);
+struct GUIWidget
+{
+	GUIWidget* parent;
+	std::vector<GUIWidget*> children;
+	
+	float layoutOffset;
+	GUIWidgetVars vars;
+	WidgetType type;
+
+	void Build();
+};
+
+namespace gui
+{
+	GUIWidget* Widget();
+	GUIWidget* Image(GUIImageSource source);
+	GUIWidget* Layout(LayoutType type);
+	GUIWidget* Text(std::string text);
+	void Tickbox(bool& state);
+	void Button(bool& state);
+	void EndNode();
+
+	extern GUIWidgetVars vars;
+}
 
 void GUISetSpritesheet(SpriteSheet* sheet);
+void GUISetFont(Font* font);
+void GUISetSpriteSequence(SpriteSequence* sequence);
+
 
 

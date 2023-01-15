@@ -769,6 +769,8 @@ void AutoBatcher::PushSprite(const Sprite& sprite)
 	auto it = batches.begin();
 	while (it != batches.end())
 	{
+		//TODO: FIX THIS! Currently a new buffer is created for every different depth setting.
+		//Instead, it should compress the range of sprite depths into the smallest possible range of integers, and use those to order the draw calls.
 		if (sprite.position.z == it->depth && spriteShader.id == it->spriteBatch.shader.id && spriteSheet == it->spriteBatch.sheet)
 		{
 			break;

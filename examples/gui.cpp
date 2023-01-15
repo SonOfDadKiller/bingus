@@ -18,6 +18,8 @@ int main()
 	return 0;
 }
 
+bool tickboxState[6];
+
 void Start()
 {
 	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
@@ -26,24 +28,25 @@ void Start()
 	});
 }
 
-bool tickboxState;
+using namespace gui;
 
 void Update(float dt)
 {
-	std::string text = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)";
-	GUIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT, text, 0.5f, Fonts::arial, vec4(1.f), TOP_LEFT);
-
-	
-	/*GUIWidgetBegin(vec2(200, -100), vec2(400, 500), TOP_LEFT, TOP_LEFT);
-		GUIImage(vec2(0), vec2(400, 500), TOP_LEFT, TOP_LEFT, vec4(0.7f, 0.1, 0.1, 0.8f), 0);
-	GUIWidgetEnd();*/
-	
-	if (GUIButton(vec2(22, -122), vec2(300.f, 300.f) + vec2(sin(GetTime()), cos(GetTime())) * 200.f, TOP_LEFT, TOP_LEFT, PRESS, vec4(1, 0.4f, 0.6f, 1)))
+	for (int i = 0; i < 30; i++)
 	{
-		std::cout << "Button Pressed!\n";
+		Image(BOX);
+			vars.pos = vec2(50.f + i * (50.f + sin(GetTime() * 0.6f) * 25.f), cos(GetTime() + i) * 400.f);
+			vars.size = vec2(100.f + cos(GetTime()) * 25.f, 100.f + sin(GetTime()) * 25.f);
+			vars.pivot = CENTER_LEFT;
+			vars.anchor = CENTER_LEFT;
+			vars.color = vec4(i / 20.f, 1.f, 1.f, 1.f);
+		EndNode();
 	}
 
-	//tickboxState = GUITickbox(vec2(22, -222), vec2(60.f, 60.f), TOP_LEFT, TOP_LEFT, vec4(1), tickboxState);
+	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+		vars.margin = Edges::All(25);
+		vars.size = vec2(0);
+	EndNode();
 }
 
 void Draw()
