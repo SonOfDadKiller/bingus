@@ -110,6 +110,15 @@ void BingusInit()
 	clearColor = vec4(0, 0, 0, 1);
 }
 
+void SwapBuffers()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	glfwSwapInterval(1);
+	glfwSwapBuffers(GetWindow());
+}
+
 void RunGame()
 {
 	if (startEvent != nullptr) startEvent();
@@ -151,10 +160,11 @@ void RunGame()
 		glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		if (drawEvent != nullptr) drawEvent();
+
 		DrawDebug(dt);
 		DrawGUI();
 
-		glfwSwapBuffers(GetWindow());
+		SwapBuffers();
 		glfwPollEvents();
 
 		//Calculate FPS
@@ -166,6 +176,10 @@ void RunGame()
 		{
 			ExitGame();
 		}
+
+#ifdef TRACY_ENABLE
+		FrameMark;
+#endif
 	}
 
 	BingusCleanup();

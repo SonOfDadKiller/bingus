@@ -18,16 +18,11 @@ int main()
 	return 0;
 }
 
-static UIText* fpsCounter;
-
 TextBatch dynamicBatch;
 TextBatch staticBatch;
 
 void Start()
 {
-	fpsCounter = new UIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT);
-	fpsCounter->fontSize = 0.5f;
-
 	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
 	{
 		ExitGame();
@@ -51,13 +46,33 @@ void Start()
 	}
 }
 
+int once = 0;
+
 void Update(float dt)
 {
-	fpsCounter->data = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime() * 1000.f) + "ms)";
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	if (once == 1000)
+	{
+		gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+			gui::vars.margin = Edges::All(25);
+			gui::vars.size = vec2(0);
+		gui::EndNode();
+
+		once = 0;
+	}
+
+	once++;
 }
 
 void Draw()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	dynamicBatch.Clear();
 
 	vec4 color = vec4(0.7f + sin(GetTime() * 0.5f) * 0.3f, 0.7f + cos(GetTime() * 1.f) * 0.3f, 0.7f + cos(GetTime() * 2.f) * 0.3f, 1.f);

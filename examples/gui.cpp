@@ -18,8 +18,6 @@ int main()
 	return 0;
 }
 
-bool tickboxState[6];
-
 void Start()
 {
 	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
@@ -29,24 +27,58 @@ void Start()
 }
 
 using namespace gui;
+bool tickboxState[6];
 
 void Update(float dt)
 {
-	for (int i = 0; i < 30; i++)
-	{
-		Image(BOX);
-			vars.pos = vec2(50.f + i * (50.f + sin(GetTime() * 0.6f) * 25.f), cos(GetTime() + i) * 400.f);
-			vars.size = vec2(100.f + cos(GetTime()) * 25.f, 100.f + sin(GetTime()) * 25.f);
-			vars.pivot = CENTER_LEFT;
-			vars.anchor = CENTER_LEFT;
-			vars.color = vec4(i / 20.f, 1.f, 1.f, 1.f);
+	Image(BOX);
+		vars.anchor = CENTER;
+		vars.pivot = CENTER;
+		vars.size = vec2(400, 600);
+		Layout(VERTICAL);
+			vars.margin = Edges::All(15.f);
+			vars.size = vec2(0);
+			vars.spacing = 10.f;
+			for (int i = 0; i < 6; i++)
+			{ 
+				Widget();
+					vars.size = vec2(0.f, 60.f);
+					vars.margin = Edges::All(1.f);
+					gui::Text("Option " + std::to_string(i) + ":");
+						vars.textAlignment = CENTER_LEFT;
+						vars.size = vec2(0);
+						vars.margin = Edges::All(10.f);
+						vars.color = vec4(0, 0, 0, 1);
+					EndNode();
+					Image(BOX);
+						vars.anchor = vars.pivot = CENTER_RIGHT;
+						vars.size = vec2(60.f);
+						Tickbox(&tickboxState[i]);
+							vars.margin = Edges::All(1.f);
+							vars.size = vec2(0);
+						EndNode();
+					EndNode();
+				EndNode();
+			}
 		EndNode();
-	}
+	EndNode();
+
+	Image(BOX);
+		vars.pos = vec2(50, 0);
+		vars.size = vec2(200, 300);
+		vars.anchor = CENTER_LEFT;
+		vars.pivot = CENTER_LEFT;
+		Image(BOX);
+			vars.size = vec2(0, 50);
+			vars.margin = Edges::All(25);
+			vars.anchor = CENTER;
+		EndNode();
+	EndNode();
 
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
-		vars.margin = Edges::All(25);
-		vars.size = vec2(0);
-	EndNode();
+		gui::vars.margin = Edges::All(25);
+		gui::vars.size = vec2(0);
+	gui::EndNode();
 }
 
 void Draw()

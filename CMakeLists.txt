@@ -31,20 +31,27 @@ include_directories(include)
 include_directories(lib/glfw/include)
 include_directories(lib/glm)
 
+option(TRACY_ENABLE "" ON)
+option( TRACY_ON_DEMAND "" ON)
+
 # Git submodule dependencies
 add_subdirectory(lib/glm)
 add_subdirectory(lib/glfw)
+add_subdirectory(lib/tracy)
 
 # Link library dependencies
 target_link_libraries(${LIB_NAME} glfw)
+target_link_libraries(${LIB_NAME} Tracy::TracyClient)
+
 
 
 #Examples
-if (${examples})
+if (${BINGUS_EXAMPLES})
 
 	#Example 1 - hello_window
 	add_executable(hello_window "examples/hello_window.cpp")
 	target_link_libraries(hello_window ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	# Set EXAMPLE1 to be the default startup project in visual studio
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hello_window)
@@ -52,14 +59,17 @@ if (${examples})
 	#Example 2 - sprites
 	add_executable(sprites "examples/sprites.cpp")
 	target_link_libraries(sprites ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	#Example 3 - text
 	add_executable(text "examples/text.cpp")
 	target_link_libraries(text ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	#Example 4 - gui
 	add_executable(gui "examples/gui.cpp")
 	target_link_libraries(gui ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 endif()
 

@@ -18,22 +18,19 @@ int main()
 	return 0;
 }
 
-static UIText* fpsCounter;
-
 void Start()
 {
-	fpsCounter = new UIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT);
-	fpsCounter->fontSize = 0.5f;
-
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
-	{
+	BindInputAction(KEY_ESCAPE, HOLD, [](float dt) {
 		ExitGame();
 	});
 }
 
 void Update(float dt)
 {
-	fpsCounter->data = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)";
+	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+		gui::vars.margin = Edges::All(25);
+		gui::vars.size = vec2(0);
+	gui::EndNode();
 }
 
 void Draw()

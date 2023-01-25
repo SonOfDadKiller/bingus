@@ -6,9 +6,12 @@ static AutoBatcher batcher;
 static GUIWidget canvas;
 static GUIMouseEvent mouseEvent;
 
-static std::vector<GUIWidget*> widgetStack;
+static std::vector<GUIWidget> widgets;
+static std::vector<u32> widgetStack;
 
 static SpriteSequence* spriteSequence;
+
+static i32 guiDepth;
 
 SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
@@ -73,19 +76,6 @@ void SetGUICanvasSize(vec2 size)
 	canvas.vars.size = size;
 }
 
-void FreeWidget(GUIWidget* widget, bool childrenOnly = false)
-{
-	for (int i = 1; i < widget->children.size(); i++)
-	{
-		FreeWidget(widget->children[i]);
-	}
-
-	if (!childrenOnly)
-	{
-		delete widget;
-	}
-}
-
 void BeginGUI()
 {
 	if (mouseEvent.state == RELEASE)
@@ -93,13 +83,15 @@ void BeginGUI()
 		mouseEvent.position = mousePosition;
 	}
 
-	//Delete widgets from stack
-	FreeWidget(&canvas, true);
-	widgetStack.clear();
 	canvas.children.clear();
+	widgets.clear();
+	widgets.push_back(canvas);
+
+	//Delete widgets from stack
+	widgetStack.clear();
 
 	//Add canvas to stack
-	widgetStack.push_back(&canvas);
+	widgetStack.push_back(0);
 
 	batcher.Clear();
 }
@@ -126,39 +118,58 @@ void NormalizeLayout(LayoutType type, float& spacing)
 
 void GUIWidget::Build()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	vars.pos = vec2(vars.pos.x, -vars.pos.y); //Invert y, so that origin is in the top-left
 
-	//Calculate locals
+	GUIWidget* parent = &widgets[parentID];
+
+	//Copy parent rect, so we can modify locally
+	vec2 parentPos = parent->vars.pos;
+	vec2 parentSize = parent->vars.size;
+
+	//React to parent layout if set
+	if (parent->vars.layoutType == HORIZONTAL)
+	{
+		parentPos.x += parentSize.x - vars.size.x - parent->layoutOffset;
+		parentSize.x = vars.size.x;
+		vars.pos.x = 0.f;
+		vars.anchor.x = 1.f;
+		vars.pivot.x = 1.f;
+		parent->layoutOffset += vars.size.x + parent->vars.spacing;
+	}
+	else if (parent->vars.layoutType == VERTICAL)
+	{
+		parentPos.y += parentSize.y - vars.size.y - parent->layoutOffset;
+		parentSize.y = vars.size.y;
+		vars.pos.y = 0.f;
+		vars.anchor.y = 1.f;
+		vars.pivot.y = 1.f;
+		parent->layoutOffset += vars.size.y + parent->vars.spacing;
+	}
+
+	//React to margins
 	//TODO: Need to tell if a property has been set (replace all comparisons with 0.f below)
 	if (vars.margin.left != 0.f || vars.margin.right != 0.f)
 	{
-		if (vars.size.x == 0.f) vars.size.x = parent->vars.size.x - vars.margin.right - vars.margin.left;
+		if (vars.size.x == 0.f) vars.size.x = parentSize.x - vars.margin.right - vars.margin.left;
 		if (vars.margin.left != 0.f) vars.pos.x = vars.margin.left - vars.anchor.x * (vars.size.x + vars.margin.left * 2.f);
 		vars.pos.x += vars.pivot.x * vars.size.x;
 	}
 
 	if (vars.margin.bottom != 0.f || vars.margin.top != 0.f)
 	{
-		if (vars.size.y == 0.f) vars.size.y = parent->vars.size.y - vars.margin.top - vars.margin.bottom;
+		if (vars.size.y == 0.f) vars.size.y = parentSize.y - vars.margin.top - vars.margin.bottom;
 		if (vars.margin.bottom != 0.f) vars.pos.y = vars.margin.bottom - vars.anchor.y * (vars.size.y + vars.margin.bottom * 2.f);
 		vars.pos.y += vars.pivot.y * vars.size.y;
 	}
 
-	if (parent->vars.layoutType == HORIZONTAL)
-	{
-		vars.pos.x += parent->layoutOffset;
-		parent->layoutOffset += vars.size.x + parent->vars.spacing;
-	}
-	else if (parent->vars.layoutType == VERTICAL)
-	{
-		vars.pos.y -= parent->layoutOffset;
-		parent->layoutOffset += vars.size.y + parent->vars.spacing;
-	}
-
-	//Position the widget relative to its parent
-	vec2 worldSpaceAnchor = parent->vars.pos + vars.anchor * parent->vars.size;
+	//Move into parent-space based on pivot and anchor
+	vec2 worldSpaceAnchor = parentPos + vars.anchor * parentSize;
 	vars.pos = worldSpaceAnchor + vars.pos - (vars.size * vars.pivot);
-
+	
 	vec2 _position = vars.pos;
 	vec2 _size = vars.size;
 
@@ -169,27 +180,73 @@ void GUIWidget::Build()
 		
 		NormalizeRect(_position, _size);
 		NormalizeEdges(vars.nineSliceMargin);
-		batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, (u32)vars.source));
+		batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, (u32)vars.source, guiDepth));
 		break;
 	case TEXT:
 		NormalizeRect(_position, _size);
-		batcher.PushText(Text(vars.text, vec3(_position, 0.f), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, vars.color, vars.font));
+		batcher.PushText(Text(vars.text, vec3(_position, 0.f), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, vars.color, vars.font, 10));
+		break;
+	case BUTTON:
+		{
+			//Determine input state
+			bool mouseInRect = mouseEvent.position.x > _position.x && mouseEvent.position.x < _position.x + vars.size.x
+				&& mouseEvent.position.y > _position.y && mouseEvent.position.y < _position.y + vars.size.y;
+			bool eventFired = mouseEvent.state == vars.eventState;
+
+			*vars.state = mouseInRect && eventFired;
+
+			NormalizeRect(_position, _size);
+			NormalizeEdges(vars.nineSliceMargin);
+			vec4 _color = vars.color - (mouseInRect ? (eventFired ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+			batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1, guiDepth));
+		}
+		break;
+	case TICKBOX:
+		{
+			bool mouseInRect = mouseEvent.position.x > _position.x && mouseEvent.position.x < _position.x + vars.size.x
+				&& mouseEvent.position.y > _position.y && mouseEvent.position.y < _position.y + vars.size.y;
+			bool eventFired = mouseEvent.state == PRESS;
+
+			*vars.state = eventFired && mouseInRect ? !(*vars.state) : *vars.state;
+
+			NormalizeRect(_position, _size);
+			NormalizeEdges(vars.nineSliceMargin);
+			vec4 _color = vars.color - (mouseInRect ? (eventFired ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+			batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1, guiDepth));
+			if (*vars.state) batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, 7, guiDepth));
+		}
+		break;
+	case MASK:
 
 		break;
 	}
 
+	guiDepth++;
+
 	for (auto it = children.begin(); it != children.end(); it++)
 	{
-		(*it)->Build();
+		widgets[*it].Build();
+	}
+
+	guiDepth--;
+
+	if (type == MASK)
+	{
+		//Reverse stencil settings
 	}
 }
 
 void DrawGUI()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	guiDepth = 0;
+
 	//Build GUI
-	for (GUIWidget* widget : canvas.children)
+	for (auto it = widgets[0].children.begin(); it != widgets[0].children.end(); it++)
 	{
-		widget->Build();
+		widgets[*it].Build();
 	}
 
 	batcher.Draw();
@@ -215,60 +272,118 @@ GUIWidgetVars::GUIWidgetVars()
 	textAlignment = TOP_LEFT;
 	fontSize = 0.5f;
 	font = Fonts::arial;
+
+	state = nullptr;
+	eventState = PRESS;
 }
 
 namespace gui
 {
 	GUIWidgetVars vars;
 
-	GUIWidget* Widget()
+	u32 Widget()
 	{
-		//Apply vars to current widget if it is not the canvas
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		//Apply vars to top-stack widget if it is not the canvas
 		if (widgetStack.size() > 1)
 		{
-			widgetStack.back()->vars = vars;
+			
+			widgets[widgetStack.back()].vars = vars;
 		}
 
 		//Push new widget onto stack, setting parent and child accordingly
-		GUIWidget* widget = new GUIWidget();
-		widget->type = WIDGET;
-		widgetStack.back()->children.push_back(widget);
-		widget->parent = widgetStack.back();
-		widgetStack.push_back(widget);
+		u32 widgetID = widgets.size();
+		
+		widgets[widgetStack.back()].children.push_back(widgetID);
+		widgets.push_back(GUIWidget());
+		widgets[widgetID].type = WIDGET;
+		widgets[widgetID].parentID = widgetStack.back();
+		widgetStack.push_back(widgetID);
 
 		vars = GUIWidgetVars();
 
-		return widget;
+		return widgetID;
 	}
 
-	GUIWidget* Image(GUIImageSource _source)
+	u32 Image(GUIImageSource _source)
 	{
-		GUIWidget* widget = Widget();
-		widget->type = IMAGE;
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = IMAGE;
 
 		vars.source = _source;
 
-		return widget;
+		return widgetID;
 	}
 
-	GUIWidget* Layout(LayoutType type)
+	u32 Layout(LayoutType type)
 	{
-		GUIWidget* widget = Widget();
-		widget->type = LAYOUT;
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = LAYOUT;
 
 		vars.layoutType = type;
 
-		return widget;
+		return widgetID;
 	}
 
-	GUIWidget* Text(std::string _text)
+	u32 Text(std::string _text)
 	{
-		GUIWidget* widget = Widget();
-		widget->type = TEXT;
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = TEXT;
 
 		vars.text = _text;
 
-		return widget;
+		return widgetID;
+	}
+
+	u32 Button(bool* state, InputState eventState)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = BUTTON;
+
+		assert(state != nullptr);
+		vars.state = state;
+		vars.eventState = eventState;
+
+		return widgetID;
+	}
+
+	u32 Tickbox(bool* state)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = TICKBOX;
+
+		assert(state != nullptr);
+		vars.state = state;
+
+		return widgetID;
+	}
+
+	u32 Mask()
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = MASK;
+
+		return widgetID;
 	}
 
 	void EndNode()
@@ -277,87 +392,13 @@ namespace gui
 		assert(widgetStack.size() > 1);
 
 		//Copy vars into top widget, then pop it from the stack
-		widgetStack.back()->vars = vars;
+		widgets[widgetStack.back()].vars = vars;
 		widgetStack.pop_back();
-		vars = widgetStack.back()->vars;
+		vars = widgets[widgetStack.back()].vars;
+	}
+
+	GUIWidget& GetWidget(u32 id)
+	{
+		return widgets[id];
 	}
 }
-
-//void GUIWidgetBegin(vec2 position, vec2 size, vec2 pivot, vec2 anchor, Edges padding, LayoutType layoutType, float layoutSpacing, bool layoutStretch)
-//{
-//	//There should always be a widget in the stack. If the user has not defined one, the first widget will be the canvas.
-//	assert(!widgetStack.empty()); 
-//	CalculateLocalRect(position, size, pivot, anchor);
-//	//NormalizeLayout(layoutType, layoutSpacing);
-//	widgetStack.push_back({ position, size, pivot, anchor, padding, layoutType, layoutSpacing, layoutStretch });
-//}
-//
-//void GUIWidgetEnd()
-//{
-//	widgetStack.pop_back();
-//	assert(!widgetStack.empty());
-//}
-//
-//void GUIImage(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, u32 frame, Edges nineSliceMargin)
-//{
-//	CalculateLocalRect(position, size, pivot, anchor);
-//	NormalizeRect(position, size);
-//	NormalizeEdges(nineSliceMargin);
-//	batcher.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, nineSliceMargin, color, spriteSequence, frame));
-//}
-//
-//void GUIText(vec2 position, vec2 size, vec2 pivot, vec2 anchor, std::string text, float fontSize, Font* font, vec4 color, vec2 alignment)
-//{
-//	CalculateLocalRect(position, size, pivot, anchor);
-//	NormalizeRect(position, size);
-//	batcher.PushText(Text(text, vec3(position, 0.f), size, vec2(1440) / GetWindowSize(), alignment, fontSize, color, font));
-//}
-//
-//bool GUIButton(vec2 position, vec2 size, vec2 pivot, vec2 anchor, InputState eventState, vec4 color)
-//{
-//	CalculateLocalRect(position, size, pivot, anchor);
-//
-//	//Determine input state before the rect is normalized for sprite rendering
-//	bool pressed = mouseEvent.state == eventState
-//		&& mouseEvent.position.x > position.x && mouseEvent.position.x < position.x + size.x
-//		&& mouseEvent.position.y > position.y && mouseEvent.position.y < position.y + size.y;
-//
-//	NormalizeRect(position, size);
-//
-//	Sprite sprite = Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, 1);
-//	vec2 margin = vec2(20) / GetWindowSize();
-//	sprite.nineSliceMargin = Edges(margin.y, margin.x, margin.y, margin.x);
-//
-//	batcher.PushSprite(sprite);
-//	return pressed;
-//}
-//
-//bool GUITickbox(vec2 position, vec2 size, vec2 pivot, vec2 anchor, vec4 color, bool state)
-//{
-//	CalculateLocalRect(position, size, pivot, anchor);
-//
-//	//Determine input state before the rect is normalized for sprite rendering
-//	bool pressed = mouseEvent.state == PRESS
-//		&& mouseEvent.position.x > position.x && mouseEvent.position.x < position.x + size.x
-//		&& mouseEvent.position.y > position.y && mouseEvent.position.y < position.y + size.y;
-//
-//	NormalizeRect(position, size);
-//	batcher.PushSprite(Sprite(vec3(position, 0.f), size, BOTTOM_LEFT, 0.f, color, spriteSequence, state ? 7 : 1));
-//
-//	return pressed ? !state : state;
-//}
-//
-//void GUISetSpritesheet(SpriteSheet* sheet)
-//{
-//	batcher.spriteSheet = sheet;
-//}
-//
-//void GUISetFont(Font* font)
-//{
-//	batcher.font = font;
-//}
-//
-//void GUISetSpriteSequence(SpriteSequence* sequence)
-//{
-//	spriteSequence = sequence;
-//}

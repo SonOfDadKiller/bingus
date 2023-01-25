@@ -108,6 +108,10 @@ void UnbindInputAction(u32 key, InputState state, u32 id)
 
 void UpdateBinding(u32 key, u32 glfwState, float dt)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	Binding* binding = &bindings[key];
 
 	if (glfwState == GLFW_PRESS)
@@ -134,8 +138,38 @@ void UpdateBinding(u32 key, u32 glfwState, float dt)
 	binding->FireEvents(dt);
 }
 
+void CalculateWorldMousePos(GLFWwindow* window)
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	//Step mouse position
+	double x, y;
+	glfwGetCursorPos(window, &x, &y);
+	mousePosition = vec2(x, GetWindowSize().y - y);
+
+	// make cursor coordinates from -1 to +1
+	float pt_x = (mousePosition.x / GetWindowSize().x) * 2.f - 1.f;
+	float pt_y = (mousePosition.y / GetWindowSize().y) * 2.f - 1.f;
+
+	//z value from 0.f to 1.f for d3d
+	vec4 origin = cameraViewProjInverse * vec4(pt_x, pt_y, 0.f, 1.f);
+	origin.w = 1.0f / origin.w;
+	origin.x *= origin.w;
+	origin.y *= origin.w;
+	origin.z *= origin.w;
+
+	mouseWorldPosition = vec3(origin.x, origin.y, origin.z);
+
+	//mouseWorldPosition = cameraProjection * cameraView * vec4(mousePosition, 0.f, 0.f);
+}
+
 void UpdateInput(GLFWwindow* window, float dt)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	//TODO: Add rest of keyboard
 	UpdateBinding(MOUSE_LEFT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT), dt);
 	UpdateBinding(MOUSE_RIGHT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT), dt);
@@ -170,25 +204,7 @@ void UpdateInput(GLFWwindow* window, float dt)
 	UpdateBinding(KEY_SPACE, glfwGetKey(window, GLFW_KEY_SPACE), dt);
 	UpdateBinding(KEY_ESCAPE, glfwGetKey(window, GLFW_KEY_ESCAPE), dt);
 
-	//Step mouse position
-	double x, y;
-	glfwGetCursorPos(window, &x, &y);
-	mousePosition = vec2(x, GetWindowSize().y - y);
-
-	// make cursor coordinates from -1 to +1
-	float pt_x = (mousePosition.x / GetWindowSize().x) * 2.f - 1.f;
-	float pt_y = (mousePosition.y / GetWindowSize().y) * 2.f - 1.f;
-
-	//z value from 0.f to 1.f for d3d
-	vec4 origin = cameraViewProjInverse * vec4(pt_x, pt_y, 0.f, 1.f);
-	origin.w = 1.0f / origin.w;
-	origin.x *= origin.w;
-	origin.y *= origin.w;
-	origin.z *= origin.w;
-
-	mouseWorldPosition = vec3(origin.x, origin.y, origin.z);
-
-	//mouseWorldPosition = cameraProjection * cameraView * vec4(mousePosition, 0.f, 0.f);
+	CalculateWorldMousePos(window);
 
 	//Step scroll, hacky but whatever
 	bindings[MOUSE_SCROLL_UP].FireEvents(dt);

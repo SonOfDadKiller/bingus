@@ -40,8 +40,6 @@ void Start()
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
 		&spriteSheet);
 
-
-
 	vec2 uiFrameSize = vec2(128);
 	testSheet = SpriteSheet("ui.png", { 
 		{ "ui", SpriteSequence({ 
@@ -50,7 +48,6 @@ void Start()
 		})}
 	});
 
-
 	testBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
 		&testSheet);
@@ -58,30 +55,30 @@ void Start()
 
 void Update(float dt)
 {
-	std::string text = "fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)";
-	GUIText(vec2(22, -22), vec2(500.f, 50.f), TOP_LEFT, TOP_LEFT, text, 0.5f, Fonts::arial, vec4(1.f), TOP_LEFT);
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+		gui::vars.margin = Edges::All(25);
+		gui::vars.size = vec2(0);
+	gui::EndNode();
 }
 
 void Draw()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	//Draw sprites
 	spriteBatch.Clear();
 
 	for (int i = 0; i < 10; i++)
 	{
-		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), -0.15f, 0.f);
-		spriteBatch.PushSprite(Sprite(position, vec2(0.3), &spriteAnim));
+		vec2 position = vec2(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f);
+		spriteBatch.PushSprite(Sprite(position, vec2(0.3), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	}
-	
+
 	spriteBatch.Draw();
-
-	//9 slice test
-	testBatch.Clear();
-	
-	Sprite sprite = Sprite(vec3(-0.7f, -0.85f, 0), vec2(1.f) + vec2(cos(GetTime()), sin(GetTime())) * 0.8f, &testSheet.sequences["ui"], 1);
-	sprite.nineSliceMargin = Edges::All(0.02f);
-	//sprite.nineSliceSample = 7;
-	testBatch.PushSprite(sprite);
-
-	testBatch.Draw();
 }
-

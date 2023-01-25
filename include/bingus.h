@@ -13,6 +13,11 @@
 #include <glm/glm.hpp>
 #include <glm/fwd.hpp>
 
+#ifdef TRACY_ENABLE
+#include "tracy/Tracy.hpp"
+#include "tracy/TracyC.h"
+#endif
+
 using i8 = int8_t;
 using i16 = int16_t;
 using i32 = int32_t;
@@ -212,24 +217,25 @@ struct Sprite
 {
 	vec4 color;
 	Edges nineSliceMargin;
-	vec3 position;
+	vec2 position;
 	vec2 size;
 	vec2 pivot;
 	SpriteSequence* sequence;
 	SpriteAnimator* animator;
 	u32 sequenceFrame;
 	float rotation;
+	i32 depth;
 
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
-		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr) { }
+	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0, i32 depth = 0)
+		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr, depth) { }
 
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr) { }
+	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0, i32 depth = 0)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr, depth) { }
 
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator) { }
+	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr, i32 depth = 0)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator, depth) { }
 
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
+	Sprite(vec2 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator, i32 depth);
 };
 
 struct FontCharacter
@@ -266,15 +272,16 @@ struct Text
 	std::string data;
 	Font* font;
 	vec4 color;
-	vec3 position;
+	vec2 position;
 	vec2 extents;
 	vec2 scale;
 	vec2 alignment;
 	float textSize;
+	i32 depth;
 
-	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
-		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
-	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
+	Text(std::string data, vec2 position, vec2 extents, float textSize, Font* font, i32 depth = 0)
+		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font, depth) { }
+	Text(std::string data, vec2 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font, i32 depth);
 };
 
 #define VERTEX_POS		0
@@ -300,6 +307,7 @@ struct VertBuffer
 
 	VertAttrib* GetAttribute(u32 attribute);
 	u32 GetAttributeOffset(u32 attribute);
+	void Destroy();
 };
 
 struct RenderBatch
@@ -316,6 +324,10 @@ struct RenderBatch
 
 	bool initialized = false;
 	bool bufferDirty = false;
+
+	bool stencilWrite = false;
+	bool stencilCheck = false;
+	bool stencilClear = false;
 
 	RenderBatch() { }
 	
@@ -365,14 +377,22 @@ struct TextBatch : RenderBatch
 
 struct AutoBatcher
 {
-	struct _Batch
+	enum BatchType { SPRITE, TEXT };
+
+	struct Batch
 	{
 		SpriteBatch spriteBatch;
 		TextBatch textBatch;
-		float depth;
+		i32 depth;
 	};
 
-	std::vector<_Batch> batches;
+	struct Request
+	{
+		
+	};
+
+	std::vector<Batch> batchAttempts;
+	std::vector<Batch> batches;
 	Shader spriteShader;
 	Shader textShader;
 	std::vector<u32> vertexAttributes;
@@ -559,7 +579,7 @@ struct GUIMouseEvent
 //TODO: Radial Button
 
 enum LayoutType { NONE, HORIZONTAL, VERTICAL };
-enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT };
+enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT, MASK };
 enum GUIImageSource { BLOCK, BOX };
 
 struct GUIWidgetVars
@@ -583,13 +603,16 @@ struct GUIWidgetVars
 	float fontSize;
 	Font* font;
 
+	bool* state;
+	InputState eventState;
+
 	GUIWidgetVars();
 };
 
 struct GUIWidget
 {
-	GUIWidget* parent;
-	std::vector<GUIWidget*> children;
+	u32 parentID;
+	std::vector<u32> children;
 	
 	float layoutOffset;
 	GUIWidgetVars vars;
@@ -598,22 +621,19 @@ struct GUIWidget
 	void Build();
 };
 
+//TODO: Rethink how to do this namespacing - it's very messy at the moment
 namespace gui
 {
-	GUIWidget* Widget();
-	GUIWidget* Image(GUIImageSource source);
-	GUIWidget* Layout(LayoutType type);
-	GUIWidget* Text(std::string text);
-	void Tickbox(bool& state);
-	void Button(bool& state);
+	u32 Widget();
+	u32 Image(GUIImageSource source);
+	u32 Layout(LayoutType type);
+	u32 Text(std::string text);
+	u32 Button(bool* state);
+	u32 Tickbox(bool* state);
+	u32 Mask();
 	void EndNode();
 
 	extern GUIWidgetVars vars;
+	GUIWidget& GetWidget(u32 id);
 }
-
-void GUISetSpritesheet(SpriteSheet* sheet);
-void GUISetFont(Font* font);
-void GUISetSpriteSequence(SpriteSequence* sequence);
-
-
 

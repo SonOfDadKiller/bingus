@@ -50,6 +50,10 @@ DebugIcon::DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color,
 
 void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
 		spriteBatch->PushSprite(Sprite(position, vec2(size), CENTER, 0.f, color, nullptr, 1));
@@ -68,6 +72,10 @@ DebugLine::DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color,
 
 void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	//WARNING: Bad hack - need to implement line-rect intersection test
 	if (PointIntersectsCamera(vec2(from.x, from.y), 2.f) && PointIntersectsCamera(vec2(to.x, to.y), 2.f))
 	{
@@ -89,15 +97,23 @@ DebugText::DebugText(u32 space, vec3 position, float size, vec4 color, std::stri
 
 void DebugText::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
 		vec3 extents = vec3(10);
-		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial));
+		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial, 0));
 	}
 }
 
 void DrawDebug(float dt)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	spriteBatch.Clear();
 	textBatch.Clear();
 
