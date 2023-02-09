@@ -153,6 +153,8 @@ void RunGame()
 		}
 
 		if (updateEvent != nullptr) updateEvent(dt);
+		BuildGUI();
+		ProcessGUIInput();
 
 		stepAlpha = stepAccumulator / dt;
 

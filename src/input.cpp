@@ -4,6 +4,11 @@
 
 vec2 mousePosition;
 vec3 mouseWorldPosition;
+vec2 mouseDelta;
+vec3 mouseWorldDelta;
+
+vec2 mousePrevPosition;
+vec3 mousePrevWorldPosition;
 
 struct Action
 {
@@ -146,7 +151,9 @@ void CalculateWorldMousePos(GLFWwindow* window)
 	//Step mouse position
 	double x, y;
 	glfwGetCursorPos(window, &x, &y);
+	mousePrevPosition = mousePosition;
 	mousePosition = vec2(x, GetWindowSize().y - y);
+	mouseDelta = mousePrevPosition - mousePosition;
 
 	// make cursor coordinates from -1 to +1
 	float pt_x = (mousePosition.x / GetWindowSize().x) * 2.f - 1.f;
@@ -159,9 +166,9 @@ void CalculateWorldMousePos(GLFWwindow* window)
 	origin.y *= origin.w;
 	origin.z *= origin.w;
 
+	mousePrevWorldPosition = mouseWorldPosition;
 	mouseWorldPosition = vec3(origin.x, origin.y, origin.z);
-
-	//mouseWorldPosition = cameraProjection * cameraView * vec4(mousePosition, 0.f, 0.f);
+	mouseWorldDelta = mouseWorldPosition - mousePrevWorldPosition;
 }
 
 void UpdateInput(GLFWwindow* window, float dt)

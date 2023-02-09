@@ -104,7 +104,7 @@ void DebugText::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
 		vec3 extents = vec3(10);
-		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial, 0));
+		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial));
 	}
 }
 

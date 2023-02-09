@@ -2,23 +2,30 @@
 
 #include <stack>
 
-static AutoBatcher batcher;
 static GUIWidget canvas;
-static GUIMouseEvent mouseEvent;
 
 static std::vector<GUIWidget> widgets;
 static std::vector<u32> widgetStack;
+static std::vector<Rect> masks;
+//static u32 highestInputWidget;
+static u32 activeInputWidget;
+
+static u32 widgetCount;
+static u32 prevWidgetCount;
 
 static SpriteSequence* spriteSequence;
+static RenderQueue renderQueue;
 
-static i32 guiDepth;
+static float guiDepth;
+static InputState guiMouseState;
+static vec2 guiMousePressPosition;
+
 
 SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
 Font* defaultGuiFont;
 
-#define NULL_FLOAT -std::numeric_limits<float>::max()
-#define NULL_VEC2 vec2(NULL_FLOAT)
+
 
 void InitializeGUI()
 {
@@ -41,11 +48,11 @@ void InitializeGUI()
 	defaultGuiSpriteSequence = &defaultGuiSpritesheet.sequences["ui"];
 	defaultGuiFont = Fonts::arial;
 
-	batcher.vertexAttributes = { VERTEX_POS, VERTEX_UV, VERTEX_COLOR };
-	batcher.spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
-	batcher.spriteSheet = &defaultGuiSpritesheet;
-	batcher.textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
-	batcher.font = defaultGuiFont;
+	renderQueue.buffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
+	renderQueue.spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
+	renderQueue.textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
+	renderQueue.spriteSheet = &defaultGuiSpritesheet;
+	renderQueue.font = Fonts::arial;
 
 	spriteSequence = defaultGuiSpriteSequence;
 
@@ -56,19 +63,19 @@ void InitializeGUI()
 
 	//TODO: Move input bindings out of here?
 	BindInputAction(MOUSE_LEFT, PRESS, [](float dt) {
-		mouseEvent.state = PRESS;
-		mouseEvent.position = mousePosition;
+		guiMouseState = PRESS;
+		guiMousePressPosition = mousePosition;
 	});
 
 	BindInputAction(MOUSE_LEFT, HOLD, [](float dt) {
-		mouseEvent.state = HOLD;
+		guiMouseState = HOLD;
 	});
 
 	BindInputAction(MOUSE_LEFT, RELEASE, [](float dt) {
-		mouseEvent.state = RELEASE;
+		guiMouseState = RELEASE;
 	});
 
-	mouseEvent.state = RELEASE;
+	guiMouseState = RELEASE;
 }
 
 void SetGUICanvasSize(vec2 size)
@@ -78,11 +85,6 @@ void SetGUICanvasSize(vec2 size)
 
 void BeginGUI()
 {
-	if (mouseEvent.state == RELEASE)
-	{
-		mouseEvent.position = mousePosition;
-	}
-
 	canvas.children.clear();
 	widgets.clear();
 	widgets.push_back(canvas);
@@ -93,7 +95,8 @@ void BeginGUI()
 	//Add canvas to stack
 	widgetStack.push_back(0);
 
-	batcher.Clear();
+	prevWidgetCount = widgetCount;
+	widgetCount = 0;
 }
 
 void NormalizeRect(vec2& position, vec2& size)
@@ -114,6 +117,19 @@ void NormalizeLayout(LayoutType type, float& spacing)
 {
 	if (type == HORIZONTAL) spacing /= GetWindowSize().x;
 	if (type == VERTICAL) spacing /= GetWindowSize().y;
+}
+
+bool PointIsHiddenByMask(vec2 position)
+{
+	bool hidden = false;
+	for (int i = 0; i < masks.size(); i++)
+	{
+		Rect mask = masks[i];
+		hidden = hidden || !(position.x > mask.min.x && position.x < mask.max.x
+			&& position.y > mask.min.y && position.y < mask.max.y);
+	}
+
+	return hidden;
 }
 
 void GUIWidget::Build()
@@ -169,70 +185,225 @@ void GUIWidget::Build()
 	//Move into parent-space based on pivot and anchor
 	vec2 worldSpaceAnchor = parentPos + vars.anchor * parentSize;
 	vars.pos = worldSpaceAnchor + vars.pos - (vars.size * vars.pivot);
-	
-	vec2 _position = vars.pos;
-	vec2 _size = vars.size;
 
-	//Side effects
-	switch (type)
-	{
-	case IMAGE:
-		
-		NormalizeRect(_position, _size);
-		NormalizeEdges(vars.nineSliceMargin);
-		batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, (u32)vars.source, guiDepth));
-		break;
-	case TEXT:
-		NormalizeRect(_position, _size);
-		batcher.PushText(Text(vars.text, vec3(_position, 0.f), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, vars.color, vars.font, 10));
-		break;
-	case BUTTON:
-		{
-			//Determine input state
-			bool mouseInRect = mouseEvent.position.x > _position.x && mouseEvent.position.x < _position.x + vars.size.x
-				&& mouseEvent.position.y > _position.y && mouseEvent.position.y < _position.y + vars.size.y;
-			bool eventFired = mouseEvent.state == vars.eventState;
-
-			*vars.state = mouseInRect && eventFired;
-
-			NormalizeRect(_position, _size);
-			NormalizeEdges(vars.nineSliceMargin);
-			vec4 _color = vars.color - (mouseInRect ? (eventFired ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
-			batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1, guiDepth));
-		}
-		break;
-	case TICKBOX:
-		{
-			bool mouseInRect = mouseEvent.position.x > _position.x && mouseEvent.position.x < _position.x + vars.size.x
-				&& mouseEvent.position.y > _position.y && mouseEvent.position.y < _position.y + vars.size.y;
-			bool eventFired = mouseEvent.state == PRESS;
-
-			*vars.state = eventFired && mouseInRect ? !(*vars.state) : *vars.state;
-
-			NormalizeRect(_position, _size);
-			NormalizeEdges(vars.nineSliceMargin);
-			vec4 _color = vars.color - (mouseInRect ? (eventFired ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
-			batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1, guiDepth));
-			if (*vars.state) batcher.PushSprite(Sprite(vec3(_position, 0.f), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, 7, guiDepth));
-		}
-		break;
-	case MASK:
-
-		break;
-	}
-
-	guiDepth++;
+	depth = guiDepth;
+	guiDepth -= 0.0001f;
 
 	for (auto it = children.begin(); it != children.end(); it++)
 	{
 		widgets[*it].Build();
 	}
 
-	guiDepth--;
+	widgetCount++;
+}
+
+void GUIWidget::Draw()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	vec2 _position = vars.pos;
+	vec2 _size = vars.size;
+
+	switch (type)
+	{
+	case IMAGE:
+		NormalizeRect(_position, _size);
+		NormalizeEdges(vars.nineSliceMargin);
+
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, (u32)vars.source));
+		break;
+	case TEXT:
+		NormalizeRect(_position, _size);
+
+		renderQueue.PushText(Text(vars.text, vec3(_position, depth), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, vars.color, vars.font));
+		break;
+	case BUTTON:
+	{
+		NormalizeRect(_position, _size);
+		NormalizeEdges(vars.nineSliceMargin);
+		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
+	}
+	break;
+	case TICKBOX:
+	{
+		NormalizeRect(_position, _size);
+		NormalizeEdges(vars.nineSliceMargin);
+
+		vec4 _color = vars.color;
+
+		if (activeInputWidget == id)
+		{
+			_color -= vec4(0.1, 0.1, 0.1, 0.1);
+
+			if (guiMouseState == HOLD)
+			{
+				_color -= vec4(0.1, 0.1, 0.1, 0.1);
+			}
+		}
+
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
+		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 7));
+	}
+	break;
+	case MASK:
+		NormalizeRect(_position, _size);
+
+		//Create masking render step, and push mask rectangle
+		renderQueue.PushStep([]() {
+			glEnable(GL_STENCIL_TEST);
+			glStencilOp(GL_ZERO, GL_REPLACE, GL_REPLACE);
+			glStencilMask(0xFF);
+			glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		}, nullptr);
+
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, Edges::None(), vec4(1, 1, 1, 0), spriteSequence, 0));
+
+		//Create next step, which will be masked
+		renderQueue.PushStep([]() {
+			glEnable(GL_STENCIL_TEST);
+			glStencilOp(GL_ZERO, GL_REPLACE, GL_REPLACE);
+			glStencilMask(0x00);
+			glStencilFunc(GL_EQUAL, 1, 0xFF);
+		}, []() {
+			glStencilMask(0xFF);
+			glClear(GL_STENCIL_BUFFER_BIT);
+			glDisable(GL_STENCIL_TEST);
+		});
+
+		break;
+	}
+
+	for (auto it = children.begin(); it != children.end(); it++)
+	{
+		widgets[*it].Draw();
+	}
 
 	if (type == MASK)
 	{
-		//Reverse stencil settings
+		//Mask has ended, push new non-masked step
+		renderQueue.PushStep(nullptr, nullptr);
+	}
+}
+
+void GUIWidget::ProcessInput()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	if (type == MASK)
+	{
+		masks.push_back(Rect(vars.pos, vars.pos + vars.size));
+	}
+
+	for (auto it = children.rbegin(); it != children.rend(); it++)
+	{
+		widgets[*it].ProcessInput();
+	}
+
+	switch (type)
+	{
+	case BUTTON:
+		if (activeInputWidget == 0)
+		{
+			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
+				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
+
+			if (vars.hoveredState) 
+			{
+				activeInputWidget = id;
+
+				//Trigger events if necessary
+				if (guiMouseState == PRESS && vars.onPress != nullptr) vars.onPress();
+			}
+		}
+		else
+		{
+			vars.hoveredState = false;
+		}
+		
+		if (vars.state != nullptr)
+		{
+			*vars.state = vars.hoveredState && guiMouseState == vars.eventState;
+		}
+		
+		break;
+	case TICKBOX:
+		if (activeInputWidget == 0)
+		{
+			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
+				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
+
+			if (vars.hoveredState) activeInputWidget = id;
+		}
+		else
+		{
+			vars.hoveredState = false;
+		}
+
+		*vars.state = guiMouseState == PRESS && vars.hoveredState ? !(*vars.state) : *vars.state;
+		break;
+	case MASK:
+		masks.pop_back();
+		break;
+	}
+}
+
+void BuildGUI()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	guiDepth = 1.f;
+
+	for (auto it = widgets[0].children.begin(); it != widgets[0].children.end(); it++)
+	{
+		widgets[*it].Build();
+	}
+}
+
+void ProcessGUIInput()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+	
+	if (guiMouseState == HOLD)
+	{
+		if (widgetCount != prevWidgetCount)
+		{
+			activeInputWidget += widgetCount - prevWidgetCount;
+		}
+
+		if (activeInputWidget > widgets.size() + 1)
+		{
+			activeInputWidget = 0;
+		}
+
+		GUIWidget* inputWidget = &widgets[activeInputWidget];
+		switch (inputWidget->type)
+		{
+		case BUTTON:
+			if (inputWidget->vars.state != nullptr)
+			{
+				*inputWidget->vars.state = guiMouseState == inputWidget->vars.eventState;
+			}
+
+			if (inputWidget->vars.onHold != nullptr) inputWidget->vars.onHold();
+			
+			break;
+		}
+
+		return;
+	}
+
+	activeInputWidget = 0;
+
+	for (auto it = widgets[0].children.rbegin(); it != widgets[0].children.rend(); it++)
+	{
+		widgets[*it].ProcessInput();
 	}
 }
 
@@ -241,15 +412,12 @@ void DrawGUI()
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
-	guiDepth = 0;
-
-	//Build GUI
+	renderQueue.Clear();
 	for (auto it = widgets[0].children.begin(); it != widgets[0].children.end(); it++)
 	{
-		widgets[*it].Build();
+		widgets[*it].Draw();
 	}
-
-	batcher.Draw();
+	renderQueue.Draw();
 }
 
 GUIWidgetVars::GUIWidgetVars()
@@ -274,7 +442,10 @@ GUIWidgetVars::GUIWidgetVars()
 	font = Fonts::arial;
 
 	state = nullptr;
+	hoveredState = false;
 	eventState = PRESS;
+	onPress = nullptr;
+	onHold = nullptr;
 }
 
 namespace gui
@@ -289,7 +460,6 @@ namespace gui
 		//Apply vars to top-stack widget if it is not the canvas
 		if (widgetStack.size() > 1)
 		{
-			
 			widgets[widgetStack.back()].vars = vars;
 		}
 
@@ -298,6 +468,7 @@ namespace gui
 		
 		widgets[widgetStack.back()].children.push_back(widgetID);
 		widgets.push_back(GUIWidget());
+		widgets[widgetID].id = widgetID;
 		widgets[widgetID].type = WIDGET;
 		widgets[widgetID].parentID = widgetStack.back();
 		widgetStack.push_back(widgetID);
@@ -346,6 +517,17 @@ namespace gui
 		return widgetID;
 	}
 
+	u32 Button()
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = BUTTON;
+
+		return widgetID;
+	}
+
 	u32 Button(bool* state, InputState eventState)
 	{
 #ifdef TRACY_ENABLE
@@ -382,6 +564,123 @@ namespace gui
 #endif
 		u32 widgetID = Widget();
 		widgets[widgetID].type = MASK;
+
+		return widgetID;
+	}
+
+	u32 Window(GUIWindow* window)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+			vars.pos = window->pos;
+			vars.size = window->size;
+
+			Button(&window->grabbed, HOLD);
+				vars.margin = Edges::All(0.01f);
+				vars.size = vec2(0);
+			EndNode();
+
+			Button(&window->grabbedLeft, HOLD);
+				vars.margin = Edges(20, window->size.x - 20, 20, 0);
+				vars.size = vec2(0);
+			EndNode();
+
+			Button(&window->grabbedTop, HOLD);
+				vars.pivot = vars.anchor = TOP_CENTER;
+				vars.size = vec2(window->size.x - 40, 20);
+			EndNode();
+
+			Button(&window->grabbedRight, HOLD);
+				vars.margin = Edges(20, 0, 20, window->size.x - 20);
+				vars.size = vec2(0);
+			EndNode();
+
+			Button(&window->grabbedBottom, HOLD);
+				vars.pivot = vars.anchor = BOTTOM_CENTER;
+				vars.size = vec2(window->size.x - 40, 20);
+			EndNode();
+
+			Button(&window->grabbedTopLeft, HOLD);
+				vars.size = vec2(20);
+				vars.pivot = vars.anchor = TOP_LEFT;
+			EndNode();
+
+			Button(&window->grabbedTopRight, HOLD);
+				vars.size = vec2(20);
+				vars.pivot = vars.anchor = TOP_RIGHT;
+			EndNode();
+
+			Button(&window->grabbedBottomLeft, HOLD);
+				vars.size = vec2(20);
+				vars.pivot = vars.anchor = BOTTOM_LEFT;
+			EndNode();
+
+			Button(&window->grabbedBottomRight, HOLD);
+				vars.size = vec2(20);
+				vars.pivot = vars.anchor = BOTTOM_RIGHT;
+			EndNode();
+
+			//Window dragging
+			if (window->grabbedLeft || window->grabbedTop || window->grabbedRight || window->grabbedBottom || 
+				window->grabbedBottomLeft || window->grabbedTopLeft || window->grabbedBottomRight || window->grabbedTopRight)
+			{
+				if (window->grabSize == NULL_VEC2)
+				{
+					window->grabSize = window->size;
+					window->grabPos = window->pos;
+				}
+			}
+			else
+			{
+				window->grabSize = NULL_VEC2;
+			}
+
+			vec2 mouseMove = guiMousePressPosition - mousePosition;
+
+			if (window->grabbed)
+			{
+				window->pos += vec2(-mouseDelta.x, mouseDelta.y);
+			}
+			
+			if (window->grabbedLeft || window->grabbedBottomLeft || window->grabbedTopLeft)
+			{
+				float minPos = window->grabPos.x + window->grabSize.x - window->maxSize.x;
+				float maxPos = window->grabPos.x + window->grabSize.x - window->minSize.x;
+				window->pos.x = glm::clamp(window->grabPos.x - mouseMove.x, minPos, maxPos);
+				window->size.x = window->grabSize.x + mouseMove.x;
+			}
+
+			if (window->grabbedTop || window->grabbedTopLeft || window->grabbedTopRight)
+			{
+				float minPos = window->grabPos.y + window->grabSize.y - window->maxSize.y;
+				float maxPos = window->grabPos.y + window->grabSize.y - window->minSize.y;
+				window->pos.y = glm::clamp(window->grabPos.y + mouseMove.y, minPos, maxPos);
+				window->size.y = window->grabSize.y - mouseMove.y;
+			}
+
+			if (window->grabbedRight || window->grabbedBottomRight || window->grabbedTopRight)
+			{
+				window->size.x = window->grabSize.x - mouseMove.x;
+			}
+
+			if (window->grabbedBottom || window->grabbedBottomLeft || window->grabbedBottomRight)
+			{
+				window->size.y = window->grabSize.y + mouseMove.y;
+			}
+
+			window->size = glm::clamp(window->size, window->minSize, window->maxSize);
+
+
+
+			Image(BOX);
+				vars.margin = Edges::All(0.001);
+				vars.size = vec2(0);
+			EndNode();
+
+		//We leave out the node terminator, so that the caller may include the window contents before terminating
+		//EndNode();
 
 		return widgetID;
 	}

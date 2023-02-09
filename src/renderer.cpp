@@ -97,8 +97,8 @@ void SpriteAnimator::SetSequence(std::string name)
 	this->timer->Reset();
 }
 
-Sprite::Sprite(vec2 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin,
-	vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator, i32 depth)
+Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin,
+	vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator)
 {
 	this->position = position;
 	this->size = size;
@@ -109,10 +109,9 @@ Sprite::Sprite(vec2 position, vec2 size, vec2 pivot, float rotation, Edges nineS
 	this->sequence = sequence;
 	this->sequenceFrame = frame;
 	this->animator = animator;
-	this->depth = depth;
 }
 
-Text::Text(std::string data, vec2 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font, i32 depth)
+Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
 {
 	this->data = data;
 	this->position = position;
@@ -122,7 +121,6 @@ Text::Text(std::string data, vec2 position, vec2 extents, vec2 scale, vec2 align
 	this->textSize = textSize;
 	this->color = color;
 	this->font = font;
-	this->depth = depth;
 }
 
 VertAttrib::VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset)
@@ -272,32 +270,7 @@ void RenderBatch::Draw()
 		shader.SetUniformInt(SHADER_MAIN_TEX, 0);
 	}
 
-	if (stencilWrite)
-	{
-		glEnable(GL_STENCIL_TEST);
-		glStencilOp(GL_ZERO, GL_ZERO, GL_REPLACE);
-		glStencilMask(0xFF);
-		glStencilFunc(GL_ALWAYS, 1, 0xFF);
-	}
-	else if (stencilCheck)
-	{
-		glEnable(GL_STENCIL_TEST);
-		glStencilOp(GL_ZERO, GL_ZERO, GL_REPLACE);
-		glStencilMask(0x00);
-		glStencilFunc(GL_EQUAL, 1, 0xFF);
-	}
-	else
-	{
-		glDisable(GL_STENCIL_TEST);
-	}
-
 	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
-
-	if (stencilClear)
-	{
-		glStencilMask(0xFF);
-		glClear(GL_STENCIL_BUFFER_BIT);
-	}
 }
 
 SpriteBatch::SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet)
@@ -367,12 +340,10 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 		cornerPositions[3] = rotation * cornerPositions[3];
 	}
 
-	vec3 positionVec3 = vec3(sprite.position.x, sprite.position.y, 0.f);
-
-	cornerPositions[0] += positionVec3;
-	cornerPositions[1] += positionVec3;
-	cornerPositions[2] += positionVec3;
-	cornerPositions[3] += positionVec3;
+	cornerPositions[0] += sprite.position;
+	cornerPositions[1] += sprite.position;
+	cornerPositions[2] += sprite.position;
+	cornerPositions[3] += sprite.position;
 
 	//Push sprite data
 	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
@@ -443,13 +414,12 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	}
 
 	//Indices
-	u32 quadIndex = vertexCount;
-	indices.push_back(quadIndex);
-	indices.push_back(quadIndex + 1);
-	indices.push_back(quadIndex + 2);
-	indices.push_back(quadIndex + 2);
-	indices.push_back(quadIndex + 3);
-	indices.push_back(quadIndex);
+	indices.push_back(vertexCount);
+	indices.push_back(vertexCount + 1);
+	indices.push_back(vertexCount + 2);
+	indices.push_back(vertexCount + 2);
+	indices.push_back(vertexCount + 3);
+	indices.push_back(vertexCount);
 
 	//Update vertex count, this is kinda important
 	vertexCount += 4;
@@ -518,9 +488,7 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 		for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] = rotation * vertPositions[vert];
 	}
 
-	vec3 positionVec3 = vec3(sprite.position.x, sprite.position.y, 0.f);
-
-	for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] += positionVec3;
+	for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] += sprite.position;
 
 	//Push sprite data
 	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
@@ -669,8 +637,6 @@ TextBatch::TextBatch(VertBuffer buffer, Shader shader, Font* font)
 
 void TextBatch::Init()
 {
-	glyphIndex = 0;
-
 	//Get vertex attribute offsets
 	positionAttrib = buffer.GetAttribute(VERTEX_POS);
 	uvAttrib = buffer.GetAttribute(VERTEX_UV);
@@ -684,7 +650,6 @@ void TextBatch::Init()
 void TextBatch::Clear()
 {
 	RenderBatch::Clear();
-	glyphIndex = 0;
 }
 
 void TextBatch::PushText(const Text& text)
@@ -693,14 +658,15 @@ void TextBatch::PushText(const Text& text)
 	ZoneScoped;
 #endif
 
+	//if (text.data == "") return;
+
 	LazyInit();
 	bufferDirty = true;
 
 	float actualSize = text.textSize / 1000;
 	vec2 origin = vec2(0);
 
-	vertexCount += text.data.size() * 4;
-	GrowVertexCapacity(vertexCount);
+	GrowVertexCapacity(vertexCount + text.data.size() * 4);
 	indices.reserve(indices.size() + text.data.size() * 6);
 
 	//Create temporary array of rectangles, this is so we can replace things after the fact.
@@ -739,7 +705,7 @@ void TextBatch::PushText(const Text& text)
 		if (glyphPos.y + glyphSize.y > extents.y) extents.y = glyphPos.y + glyphSize.y;
 
 		//Move glyph into world space
-		glyphPos += text.position;
+		glyphPos += vec2(text.position.x, text.position.y);
 
 		origin.x += glyph->advance;
 
@@ -753,10 +719,10 @@ void TextBatch::PushText(const Text& text)
 		vec2 pos = glyphRect.position + offset;
 
 		vec3 positions[] = {
-			vec3(pos, 0),
-			vec3(pos.x, pos.y + glyphRect.size.y, 0),
-			vec3(pos + glyphRect.size, 0),
-			vec3(pos.x + glyphRect.size.x, pos.y, 0)
+			vec3(pos, text.position.z),
+			vec3(pos.x, pos.y + glyphRect.size.y, text.position.z),
+			vec3(pos + glyphRect.size, text.position.z),
+			vec3(pos.x + glyphRect.size.x, pos.y, text.position.z)
 		};
 
 		vec2 UVs[] = {
@@ -766,7 +732,7 @@ void TextBatch::PushText(const Text& text)
 			glyphRect.character->uvMax
 		};
 
-		u32 baseOffset = (glyphIndex * 4 * buffer.vertexComponentCount);
+		u32 baseOffset = (vertexCount * buffer.vertexComponentCount);
 
 		for (u32 vertIndex = 0; vertIndex < 4; vertIndex++)
 		{
@@ -783,111 +749,133 @@ void TextBatch::PushText(const Text& text)
 			}
 		}
 
-		u32 indexOffset = (glyphIndex++) * 4;
-		indices.push_back(indexOffset + 0);
-		indices.push_back(indexOffset + 1);
-		indices.push_back(indexOffset + 2);
-		indices.push_back(indexOffset + 2);
-		indices.push_back(indexOffset + 3);
-		indices.push_back(indexOffset + 0);
+		indices.push_back(vertexCount + 0);
+		indices.push_back(vertexCount + 1);
+		indices.push_back(vertexCount + 2);
+		indices.push_back(vertexCount + 2);
+		indices.push_back(vertexCount + 3);
+		indices.push_back(vertexCount + 0);
+
+		vertexCount += 4;
 	}
 }
 
-void AutoBatcher::Draw()
+void RenderQueue::Clear()
 {
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	if (!sorted && batches.size() != 1)
+	//Clear batches that were used last frame
+	for (int i = 0; i < currentSpriteBatchIndex; i++)
 	{
-		std::sort(batches.begin(), batches.end(), [](Batch a, Batch b) { return a.depth < b.depth; });
-		sorted = true;
+		spriteBatches[i].Clear();
 	}
 
-	for (auto it = batches.begin(); it != batches.end(); it++)
+	for (int i = 0; i < currentTextBatchIndex; i++)
 	{
-		it->spriteBatch.Draw();
-		it->textBatch.Draw();
+		textBatches[i].Clear();
 	}
+
+	currentSpriteBatchIndex = 0;
+	currentTextBatchIndex = 0;
+	stepIndex = 0;
+	steps.clear();
 }
 
-void AutoBatcher::PushSprite(const Sprite& sprite)
+void RenderQueue::PushStep(void(*preDraw)(), void(*postDraw)())
 {
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
+	Step step;
+	step.preDraw = preDraw;
+	step.postDraw = postDraw;
+	steps.push_back(step);
+	stepIndex++;
+}
 
-	//NOTE: I should really consider just enabling depth testing and using that instead of different draw calls for depth
+void RenderQueue::PushSprite(const Sprite& sprite)
+{
+	u32 spriteBatchIndex;
 
-	auto it = batches.begin();
-	while (it != batches.end())
+	//Create new steps if the index has grown past the current size
+	if (stepIndex + 1 > steps.size())
 	{
-		//TODO: FIX THIS! Currently a new buffer is created for every different depth setting.
-		//Instead, it should compress the range of sprite depths into the smallest possible range of integers, and use those to order the draw calls.
-		if (sprite.depth == it->depth && spriteShader.id == it->spriteBatch.shader.id && spriteSheet == it->spriteBatch.sheet)
+		for (u32 diff = (stepIndex + 1) - steps.size(); diff != 0; diff--)
 		{
-			break;
+			steps.push_back(Step());
 		}
-		it++;
 	}
 
-	if (it == batches.end())
+	if (steps[stepIndex].spriteBatchIndex != -1)
 	{
-		//Batch with the correct settings wasn't found, create one
-		batches.push_back({ SpriteBatch(VertBuffer(vertexAttributes), spriteShader, spriteSheet),
-			TextBatch(VertBuffer(vertexAttributes), textShader, font), sprite.depth });
-		batches[batches.size() - 1].spriteBatch.PushSprite(sprite);
+		//Sprite batch for this step already exists
+		spriteBatchIndex = steps[stepIndex].spriteBatchIndex;
 	}
 	else
 	{
-		it->spriteBatch.PushSprite(sprite);
+		//Request/create sprite batch for this step
+		if (currentSpriteBatchIndex + 1 > spriteBatches.size())
+		{
+			spriteBatches.push_back(SpriteBatch(buffer, spriteShader, spriteSheet));
+		}
+
+		spriteBatchIndex = currentSpriteBatchIndex;
+		steps[stepIndex].spriteBatchIndex = spriteBatchIndex;
+		currentSpriteBatchIndex++;
 	}
-	
-	sorted = false;
+
+	spriteBatches[spriteBatchIndex].PushSprite(sprite);
 }
 
-void AutoBatcher::PushText(const Text& text)
+void RenderQueue::PushText(const Text& text)
 {
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
+	u32 textBatchIndex;
 
-	auto it = batches.begin();
-	while (it != batches.end())
+	//Create new steps if the index has grown past the current size
+	if (stepIndex + 1 > steps.size())
 	{
-		if (text.depth == it->depth && textShader.id == it->textBatch.shader.id && font == it->textBatch.font)
+		for (u32 diff = (stepIndex + 1) - steps.size(); diff != 0; diff--)
 		{
-			break;
+			steps.push_back(Step());
 		}
-		it++;
 	}
 
-	if (it == batches.end())
+	if (steps[stepIndex].textBatchIndex != -1)
 	{
-		//Batch with the correct settings wasn't found, create one
-		batches.push_back({ SpriteBatch(VertBuffer(vertexAttributes), spriteShader, spriteSheet),
-			TextBatch(VertBuffer(vertexAttributes), textShader, font), text.depth });
-		batches[batches.size() - 1].textBatch.PushText(text);
+		//Sprite batch for this step already exists
+		textBatchIndex = steps[stepIndex].textBatchIndex;
 	}
 	else
 	{
-		it->textBatch.PushText(text);
+		//Request/create sprite batch for this step
+		if (currentTextBatchIndex + 1 > textBatches.size())
+		{
+			textBatches.push_back(TextBatch(buffer, textShader, font));
+		}
+
+		textBatchIndex = currentTextBatchIndex;
+		steps[stepIndex].textBatchIndex = textBatchIndex;
+		currentTextBatchIndex++;
 	}
 
-	sorted = false;
+	textBatches[textBatchIndex].PushText(text);
 }
 
-void AutoBatcher::Clear()
+void RenderQueue::Draw()
 {
-	for (auto it = batches.begin(); it != batches.end(); it++)
+	for (u32 i = 0; i < steps.size(); i++)
 	{
-		it->spriteBatch.Clear();
-		it->textBatch.Clear();
-	}
+		if (steps[i].preDraw != nullptr) steps[i].preDraw();
 
-	//Prevent sort on empty vector
-	sorted = true;
+		i32 sbIndex = steps[i].spriteBatchIndex;
+		if (sbIndex != -1)
+		{
+			spriteBatches[sbIndex].Draw();
+		}
+
+		i32 tbIndex = steps[i].textBatchIndex;
+		if (tbIndex != -1)
+		{
+			textBatches[tbIndex].Draw();
+		}
+
+		if (steps[i].postDraw != nullptr) steps[i].postDraw();
+	}
 }
 
 //TODO: Move this into a different file? Or move texture and shader loading into this file? Questions indeed...

@@ -39,6 +39,9 @@ using glm::vec4;
 using glm::mat4;
 using glm::quat;
 
+#define NULL_FLOAT -std::numeric_limits<float>::max()
+#define NULL_VEC2 vec2(NULL_FLOAT)
+
 struct Rect
 {
 	vec2 min, max;
@@ -161,7 +164,6 @@ u32 LoadShader(ShaderType, const char* file_path); //Decide where this should go
 void SetActiveShader(Shader* shader);
 
 //Renderer
-
 #define TOP_LEFT		vec2(0.0, 1.0)
 #define TOP_CENTER		vec2(0.5, 1.0)
 #define TOP_RIGHT		vec2(1.0, 1.0)
@@ -217,25 +219,24 @@ struct Sprite
 {
 	vec4 color;
 	Edges nineSliceMargin;
-	vec2 position;
+	vec3 position;
 	vec2 size;
 	vec2 pivot;
 	SpriteSequence* sequence;
 	SpriteAnimator* animator;
 	u32 sequenceFrame;
 	float rotation;
-	i32 depth;
 
-	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0, i32 depth = 0)
-		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr, depth) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
+		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr) { }
 
-	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0, i32 depth = 0)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr, depth) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr) { }
 
-	Sprite(vec2 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr, i32 depth = 0)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator, depth) { }
+	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr)
+		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator) { }
 
-	Sprite(vec2 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator, i32 depth);
+	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
 };
 
 struct FontCharacter
@@ -272,16 +273,15 @@ struct Text
 	std::string data;
 	Font* font;
 	vec4 color;
-	vec2 position;
+	vec3 position;
 	vec2 extents;
 	vec2 scale;
 	vec2 alignment;
 	float textSize;
-	i32 depth;
 
-	Text(std::string data, vec2 position, vec2 extents, float textSize, Font* font, i32 depth = 0)
-		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font, depth) { }
-	Text(std::string data, vec2 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font, i32 depth);
+	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
+		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
+	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
 };
 
 #define VERTEX_POS		0
@@ -325,10 +325,6 @@ struct RenderBatch
 	bool initialized = false;
 	bool bufferDirty = false;
 
-	bool stencilWrite = false;
-	bool stencilCheck = false;
-	bool stencilClear = false;
-
 	RenderBatch() { }
 	
 	void LazyInit();
@@ -365,7 +361,7 @@ struct TextBatch : RenderBatch
 	VertAttrib* positionAttrib;
 	VertAttrib* uvAttrib;
 	VertAttrib* colorAttrib;
-	u32 glyphIndex = 0;
+	//u32 glyphIndex = 0;
 
 	TextBatch() { }
 	TextBatch(VertBuffer buffer, Shader shader, Font* font);
@@ -375,35 +371,35 @@ struct TextBatch : RenderBatch
 	void PushText(const Text& text);
 };
 
-struct AutoBatcher
+struct RenderQueue
 {
-	enum BatchType { SPRITE, TEXT };
+	std::vector<SpriteBatch> spriteBatches;
+	u32 currentSpriteBatchIndex;
+	std::vector<TextBatch> textBatches;
+	u32 currentTextBatchIndex;
 
-	struct Batch
+	struct Step
 	{
-		SpriteBatch spriteBatch;
-		TextBatch textBatch;
-		i32 depth;
+		i32 spriteBatchIndex = -1;
+		i32 textBatchIndex = -1;
+		void(*preDraw)();
+		void(*postDraw)();
 	};
 
-	struct Request
-	{
-		
-	};
+	std::vector<Step> steps;
+	u32 stepIndex;
 
-	std::vector<Batch> batchAttempts;
-	std::vector<Batch> batches;
+	VertBuffer buffer;
 	Shader spriteShader;
 	Shader textShader;
-	std::vector<u32> vertexAttributes;
 	SpriteSheet* spriteSheet;
 	Font* font;
-	bool sorted;
 
 	void Clear();
-	void Draw();
+	void PushStep(void(*preDraw)(), void(*postDraw)());
 	void PushSprite(const Sprite& sprite);
 	void PushText(const Text& text);
+	void Draw();
 };
 
 void InitializeRenderer();
@@ -549,6 +545,8 @@ enum InputState
 
 extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;
+extern vec2 mouseDelta;
+extern vec3 mouseWorldDelta;
 
 void InitializeInput(GLFWwindow* window);
 u32 BindInputAction(u32 key, InputState state, InputEvent fun);
@@ -564,13 +562,9 @@ extern Font* defaultGuiFont;
 void InitializeGUI();
 void SetGUICanvasSize(vec2 size);
 void BeginGUI();
+void BuildGUI();
+void ProcessGUIInput();
 void DrawGUI();
-
-struct GUIMouseEvent
-{
-	vec2 position;
-	InputState state;
-};
 
 //TODO: Margin
 //TODO: Vertical/Horizontal Layout
@@ -579,7 +573,7 @@ struct GUIMouseEvent
 //TODO: Radial Button
 
 enum LayoutType { NONE, HORIZONTAL, VERTICAL };
-enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT, MASK };
+enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT, MASK, WINDOW };
 enum GUIImageSource { BLOCK, BOX };
 
 struct GUIWidgetVars
@@ -604,21 +598,47 @@ struct GUIWidgetVars
 	Font* font;
 
 	bool* state;
+	bool hoveredState;
 	InputState eventState;
+	void (*onPress)();
+	void (*onHold)();
 
 	GUIWidgetVars();
 };
 
 struct GUIWidget
 {
+	u32 id;
 	u32 parentID;
 	std::vector<u32> children;
 	
+	float depth;
 	float layoutOffset;
 	GUIWidgetVars vars;
 	WidgetType type;
 
 	void Build();
+	void Draw();
+	void ProcessInput();
+};
+
+struct GUIWindow
+{
+	vec2 pos;
+	vec2 size;
+	vec2 minSize = vec2(100);
+	vec2 maxSize = vec2(1000);
+	vec2 grabSize = NULL_VEC2;
+	vec2 grabPos = NULL_VEC2;
+	bool grabbed = false;
+	bool grabbedLeft = false;
+	bool grabbedTop = false;
+	bool grabbedRight = false;
+	bool grabbedBottom = false;
+	bool grabbedTopLeft = false;
+	bool grabbedTopRight = false;
+	bool grabbedBottomLeft = false;
+	bool grabbedBottomRight = false;
 };
 
 //TODO: Rethink how to do this namespacing - it's very messy at the moment
@@ -628,12 +648,13 @@ namespace gui
 	u32 Image(GUIImageSource source);
 	u32 Layout(LayoutType type);
 	u32 Text(std::string text);
-	u32 Button(bool* state);
+	u32 Button();
+	u32 Button(bool* state, InputState eventState);
 	u32 Tickbox(bool* state);
 	u32 Mask();
+	u32 Window(GUIWindow* window);
 	void EndNode();
 
 	extern GUIWidgetVars vars;
 	GUIWidget& GetWidget(u32 id);
 }
-

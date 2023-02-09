@@ -41,8 +41,8 @@ void Start()
 		&spriteSheet);
 
 	vec2 uiFrameSize = vec2(128);
-	testSheet = SpriteSheet("ui.png", { 
-		{ "ui", SpriteSequence({ 
+	testSheet = SpriteSheet("ui.png", {
+		{ "ui", SpriteSequence({
 			SpriteSequenceFrame(Edges::None(), Rect(vec2(0, 0), vec2(uiFrameSize.x, uiFrameSize.y))),
 			SpriteSequenceFrame(Edges::All(7), Rect(vec2(uiFrameSize.x, 0), vec2(uiFrameSize.x * 2.f, uiFrameSize.y))),
 		})}
@@ -74,11 +74,14 @@ void Draw()
 	//Draw sprites
 	spriteBatch.Clear();
 
+	spriteBatch.PushSprite(Sprite(vec3(-0.5, 0, 0.1f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	for (int i = 0; i < 10; i++)
 	{
-		vec2 position = vec2(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f);
+		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.15f);
 		spriteBatch.PushSprite(Sprite(position, vec2(0.3), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	}
+
+	spriteBatch.PushSprite(Sprite(vec3(0.5, 0, 2.f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 
 	spriteBatch.Draw();
 }

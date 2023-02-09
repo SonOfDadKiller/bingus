@@ -46,25 +46,17 @@ void Start()
 	}
 }
 
-int once = 0;
-
 void Update(float dt)
 {
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
 
-	if (once == 1000)
-	{
-		gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
-			gui::vars.margin = Edges::All(25);
-			gui::vars.size = vec2(0);
-		gui::EndNode();
+	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+		gui::vars.margin = Edges::All(25);
+		gui::vars.size = vec2(0);
+	gui::EndNode();
 
-		once = 0;
-	}
-
-	once++;
 }
 
 void Draw()
