@@ -2,6 +2,7 @@
 
 static SpriteBatch spriteBatch;
 static SpriteSheet spriteSheet;
+static SpriteSequence* spriteSequence;
 
 static TextBatch textBatch;
 
@@ -12,7 +13,9 @@ void InitializeDebug()
 {
 	//Set up renderer
 	spriteSheet = SpriteSheet("debug.png");
-	spriteSheet.sequences["debug"] = SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f);
+	spriteSheet.sequences["debug"] = SpriteSequence(vec2(0), vec2(256, 256), 7, 0.f);
+
+	spriteSequence = &spriteSheet.sequences["debug"];
 
 	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
@@ -56,7 +59,7 @@ void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 
 	if (PointIntersectsCamera(vec2(position.x, position.y), size))
 	{
-		spriteBatch->PushSprite(Sprite(position, vec2(size), CENTER, 0.f, color, nullptr, 1));
+		spriteBatch->PushSprite(Sprite(position, vec2(size), CENTER, 0.f, color, spriteSequence, icon));
 	}
 }
 
@@ -80,7 +83,7 @@ void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
 	if (PointIntersectsCamera(vec2(from.x, from.y), 2.f) && PointIntersectsCamera(vec2(to.x, to.y), 2.f))
 	{
 		vec3 diff = to - from;
-		Sprite sprite = Sprite(from, vec2(glm::length(diff), thickness), CENTER_LEFT, glm::degrees(atan2(diff.y, diff.x)), color);
+		Sprite sprite = Sprite(from, vec2(glm::length(diff), thickness), CENTER_LEFT, glm::degrees(atan2(diff.y, diff.x)), color, spriteSequence, 0);
 		spriteBatch->PushSprite(sprite);
 	}
 }

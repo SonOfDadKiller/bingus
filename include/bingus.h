@@ -419,11 +419,11 @@ float GetCameraSize();
 bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
 
 //Debug
-#define DEBUG_TRIANGLE 0
-#define DEBUG_DIAMOND 1
-#define DEBUG_PENTAGON 2
-#define DEBUG_HEXAGON 3
-#define DEBUG_CIRCLE 4
+#define DEBUG_TRIANGLE 1
+#define DEBUG_DIAMOND 2
+#define DEBUG_PENTAGON 3
+#define DEBUG_HEXAGON 4
+#define DEBUG_CIRCLE 5
 
 #define DEBUG_WORLD 5
 #define DEBUG_SCREEN 6
