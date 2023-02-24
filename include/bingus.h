@@ -66,6 +66,9 @@ float GetAvgFrameTime();
 u32 GetFPS();
 float GetTime();
 
+void SetFixedTimestep(float dt);
+float GetFixedTimestep();
+
 struct Timer
 {
 	float timeElapsed;
@@ -101,7 +104,7 @@ void SetGameDrawFunction(void(*callback)());
 #define DEFAULT_WINDOW_WIDTH 1920
 #define DEFAULT_WINDOW_HEIGHT 1080
 
-void SetupWindow(i32 width, i32 height);
+void SetupWindow(i32 width, i32 height, const char* title);
 GLFWwindow* GetWindow();
 vec2 GetWindowSize();
 

@@ -9,7 +9,7 @@ void Draw();
 
 int main()
 {
-	SetupWindow(1280, 720);
+	SetupWindow(1280, 720, "GUI");
 	BingusInit();
 
 	SetGameStartFunction(Start);
@@ -32,11 +32,6 @@ void Start()
 using namespace gui;
 
 std::vector<GUIWindow> windows;
-
-vec2 prevMousePos = vec2(0);
-bool moreWidgets = false;
-bool lessWidgets = false;
-
 bool tickboxState;
 
 void Update(float dt)
@@ -58,39 +53,36 @@ void Update(float dt)
 	Image(BOX);
 		vars.pos = vec2(50, 80);
 		vars.size = vec2(200, 100);
-		Button(&moreWidgets, PRESS);
+		Button();
 			vars.pivot = vars.anchor = CENTER_RIGHT;
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
+			vars.onPress = []() {
+				GUIWindow window;
+				window.pos = vec2(300);
+				window.size = vec2(400, 300);
+				window.minSize = vec2(400, 300);
+				window.maxSize = vec2(700, 500);
+				windows.push_back(window);
+			};
 			Image(PLUS);
 				vars.pivot = vars.anchor = CENTER;
 				vars.size = vec2(60);
 			EndNode();
 		EndNode();
-		Button(&lessWidgets, PRESS);
+		Button();
 			vars.pivot = vars.anchor = CENTER_LEFT;
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
+			vars.onPress = []() {
+				windows.pop_back();
+			};
 			Image(MINUS);
 				vars.pivot = vars.anchor = CENTER;
 				vars.size = vec2(60);
 			EndNode();
 		EndNode();
 	EndNode();
-
-	if (moreWidgets)
-	{
-		GUIWindow window;
-		window.pos = vec2(300);
-		window.size = vec2(400, 300);
-		window.minSize = vec2(400, 300);
-		window.maxSize = vec2(700, 500);
-		windows.push_back(window);
-	}
-	else if (lessWidgets && !windows.empty())
-	{
-		windows.pop_back();
-	}
 	
 	std::stringstream stream;
 	stream << std::fixed << std::setprecision(2) << GetAvgFrameTime() * 1000.f;

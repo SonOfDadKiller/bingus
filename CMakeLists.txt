@@ -47,28 +47,33 @@ target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 #Examples
 if (${BINGUS_EXAMPLES})
-
-	#Example 1 - hello_window
-	add_executable(hello_window "examples/hello_window.cpp")
-	target_link_libraries(hello_window ${LIB_NAME})
+	
+	#Example 0 - hello_window
+	add_executable(example0_hello_window "examples/hello_window.cpp")
+	target_link_libraries(example0_hello_window ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	# Set EXAMPLE1 to be the default startup project in visual studio
-	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hello_window)
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT example0_hello_window )
 
-	#Example 2 - sprites
-	add_executable(sprites "examples/sprites.cpp")
-	target_link_libraries(sprites ${LIB_NAME})
+	#Example 1 - sprites
+	add_executable(example1_sprites "examples/sprites.cpp")
+	target_link_libraries(example1_sprites ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
-	#Example 3 - text
-	add_executable(text "examples/text.cpp")
-	target_link_libraries(text ${LIB_NAME})
+	#Example 2 - text
+	add_executable(example2_text "examples/text.cpp")
+	target_link_libraries(example2_text ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
-	#Example 4 - gui
-	add_executable(gui "examples/gui.cpp")
-	target_link_libraries(gui ${LIB_NAME})
+	#Example 3 - gui
+	add_executable(example3_gui "examples/gui.cpp")
+	target_link_libraries(example3_gui ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
+
+	#Example 4 - boids
+	add_executable(example4_boids "examples/boids.cpp")
+	target_link_libraries(example4_boids ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 endif()

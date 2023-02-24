@@ -6,7 +6,7 @@ void Draw();
 
 int main()
 {
-	SetupWindow(1280, 720);
+	SetupWindow(1280, 720, "Sprites");
 	BingusInit();
 
 	SetGameStartFunction(Start);

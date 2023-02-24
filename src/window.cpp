@@ -4,7 +4,7 @@
 GLFWwindow* window;
 vec2 windowSize;
 
-void SetupWindow(i32 width, i32 height)
+void SetupWindow(i32 width, i32 height, const char* title)
 {
 	//Initialize GLFW and create window
 	//TODO: Load window dimensions from save/load system
@@ -13,7 +13,7 @@ void SetupWindow(i32 width, i32 height)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(width, height, "Boids", nullptr, nullptr);
+	window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 
 	if (window == nullptr)
 	{

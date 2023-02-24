@@ -149,11 +149,11 @@ void GUIWidget::Build()
 	//React to parent layout if set
 	if (parent->vars.layoutType == HORIZONTAL)
 	{
-		parentPos.x += parentSize.x - vars.size.x - parent->layoutOffset;
+		parentPos.x += parent->layoutOffset;
 		parentSize.x = vars.size.x;
 		vars.pos.x = 0.f;
-		vars.anchor.x = 1.f;
-		vars.pivot.x = 1.f;
+		vars.anchor.x = 0.f;
+		vars.pivot.x = 0.f;
 		parent->layoutOffset += vars.size.x + parent->vars.spacing;
 	}
 	else if (parent->vars.layoutType == VERTICAL)
@@ -232,18 +232,7 @@ void GUIWidget::Draw()
 		NormalizeRect(_position, _size);
 		NormalizeEdges(vars.nineSliceMargin);
 
-		vec4 _color = vars.color;
-
-		if (activeInputWidget == id)
-		{
-			_color -= vec4(0.1, 0.1, 0.1, 0.1);
-
-			if (guiMouseState == HOLD)
-			{
-				_color -= vec4(0.1, 0.1, 0.1, 0.1);
-			}
-		}
-
+		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
 		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 2));
 	}

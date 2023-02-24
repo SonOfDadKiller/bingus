@@ -447,7 +447,6 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 	}
 
 	assert(frame != nullptr);
-	//TODO: Per-side nine slice scaling
 
 	//Vertices
 	vec3 vertPositions[] = {

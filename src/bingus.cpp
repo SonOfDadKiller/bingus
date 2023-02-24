@@ -28,7 +28,7 @@ float CalcAverageTick(float newtick)
 //Time management
 static float gameTime;
 static float stepAccumulator = 0.f;
-static const float stepTime = 1.f / 1.f;
+static float timestep = 1.f / 60.f;
 static float stepAlpha;
 
 float GetTime()
@@ -44,6 +44,16 @@ float GetAvgFrameTime()
 u32 GetFPS()
 {
 	return framesPerSecond;
+}
+
+void SetFixedTimestep(float _timestep)
+{
+	timestep = _timestep;
+}
+
+float GetFixedTimestep()
+{
+	return timestep;
 }
 
 //Timers
@@ -146,10 +156,10 @@ void RunGame()
 		if (dt > 0.25f) dt = 0.25f;
 		stepAccumulator += dt;
 
-		while (stepAccumulator >= stepTime)
+		while (stepAccumulator >= timestep)
 		{
-			if (fixedUpdateEvent != nullptr) fixedUpdateEvent(stepTime);
-			stepAccumulator -= stepTime;
+			if (fixedUpdateEvent != nullptr) fixedUpdateEvent(timestep);
+			stepAccumulator -= timestep;
 		}
 
 		if (updateEvent != nullptr) updateEvent(dt);
