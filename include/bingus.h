@@ -127,7 +127,7 @@ struct Texture
 
 	Texture() { }
 	Texture(u32 id, vec2 size); //This initializes a texture loaded manually
-	Texture(const char* filePath, i32 wrapMode = GL_REPEAT); // This loads a texture from disk
+	Texture(const char* filePath, i32 wrapMode = GL_REPEAT, i32 filter = GL_LINEAR_MIPMAP_LINEAR); // This loads a texture from disk
 };
 
 //Shader
@@ -135,7 +135,7 @@ enum ShaderType { VERTEX, FRAGMENT };
 
 #define SHADER_COLOR		0x01
 #define SHADER_MAIN_TEX		0x02
-#define SHADER_SPEC_POW		0x04
+#define SHADER_SPEC_POW		0x04 
 
 struct Shader
 {
@@ -199,6 +199,7 @@ struct SpriteSheet
 	SpriteSheet() { }
 	//TODO: Should these constructors take in a texture and expect the user to load it seperately?
 	//Perhaps having the option to do either would be best.
+	//TODO: Add interface for passing in an existing texture
 	SpriteSheet(const char* texturePath);
 	SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences);
 };
@@ -574,7 +575,7 @@ void DrawGUI();
 
 enum LayoutType { NONE, HORIZONTAL, VERTICAL };
 enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT, MASK, WINDOW };
-enum GUIImageSource { BLOCK, BOX };
+enum GUIImageSource { BLOCK, BOX, CROSS, TICK, MINUS, PLUS, ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT };
 
 struct GUIWidgetVars
 {

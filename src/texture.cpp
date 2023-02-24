@@ -15,7 +15,7 @@ Texture::Texture(u32 id, vec2 size)
 	this->size = size;
 }
 
-Texture::Texture(const char* filePath, i32 wrapMode)
+Texture::Texture(const char* filePath, i32 wrapMode, i32 filter)
 {
 	glGenTextures(1, &id);
 	glBindTexture(GL_TEXTURE_2D, id);
@@ -23,8 +23,8 @@ Texture::Texture(const char* filePath, i32 wrapMode)
 	//Set parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
 	//Load texture from file
 	int width, height, nrChannels;

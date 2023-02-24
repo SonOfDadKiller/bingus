@@ -69,12 +69,12 @@ SpriteSequence::SpriteSequence(std::vector<SpriteSequenceFrame> frames)
 
 SpriteSheet::SpriteSheet(const char* texturePath)
 {
-	texture = Texture(texturePath, GL_CLAMP_TO_EDGE);
+	texture = Texture(texturePath, GL_CLAMP_TO_EDGE, GL_LINEAR);
 }
 
 SpriteSheet::SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences)
 {
-	texture = Texture(texturePath, GL_CLAMP_TO_EDGE);
+	texture = Texture(texturePath, GL_CLAMP_TO_EDGE, GL_LINEAR);
 	this->sequences = sequences;
 }
 
@@ -505,7 +505,7 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 		memcpy(vertexData.data() + positionOffset, &vertPositions[vert], sizeof(vec3));
 	}
 
-	//NOTE: UVs should probably be non-optional, as theres no point when using a 9 slice
+	//NOTE: UVs should probably be non-optional, as theres no point not having them when using a 9 slice
 
 	if (uvAttrib != nullptr)
 	{

@@ -107,10 +107,10 @@ void NormalizeRect(vec2& position, vec2& size)
 
 void NormalizeEdges(Edges& edges)
 {
-	edges.top /= GetWindowSize().y;
-	edges.right /= GetWindowSize().x;
-	edges.bottom /= GetWindowSize().y;
-	edges.left /= GetWindowSize().x;
+	edges.top /= GetWindowSize().y / 2.f;
+	edges.right /= GetWindowSize().x / 2.f;
+	edges.bottom /= GetWindowSize().y / 2.f;
+	edges.left /= GetWindowSize().x / 2.f;
 }
 
 void NormalizeLayout(LayoutType type, float& spacing)
@@ -245,7 +245,7 @@ void GUIWidget::Draw()
 		}
 
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
-		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 7));
+		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 2));
 	}
 	break;
 	case MASK:
@@ -430,7 +430,7 @@ GUIWidgetVars::GUIWidgetVars()
 
 	source = BLOCK;
 	color = vec4(1);
-	nineSliceMargin = Edges::All(15);
+	nineSliceMargin = Edges::All(8);
 
 	layoutType = NONE;
 	spacing = 0.f;

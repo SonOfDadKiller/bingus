@@ -33,12 +33,11 @@ using namespace gui;
 
 std::vector<GUIWindow> windows;
 
-
 vec2 prevMousePos = vec2(0);
 bool moreWidgets = false;
 bool lessWidgets = false;
 
-bool pressButton;
+bool tickboxState;
 
 void Update(float dt)
 {
@@ -49,45 +48,32 @@ void Update(float dt)
 	for (auto window = windows.begin(); window != windows.end(); window++)
 	{
 		Window(&(*window));
-			Button();
-
-			vars.pos = vec2(50);
-
-			vars.onPress = []() {
-				std::cout << "WTF\n";
-			};
-			
+			Tickbox(&tickboxState);
+				vars.size = vec2(32);
+				vars.pos = vec2(25);
 			EndNode();
 		EndNode();
 	}
 	
 	Image(BOX);
-		vars.pos = vec2(50);
+		vars.pos = vec2(50, 80);
 		vars.size = vec2(200, 100);
-
 		Button(&moreWidgets, PRESS);
 			vars.pivot = vars.anchor = CENTER_RIGHT;
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
-			gui::Text("+");
-				vars.margin = Edges::All(0.01f);
-
-				vars.size = vec2(0);
-				vars.textAlignment = CENTER;
-				vars.fontSize = 1.1f;
-				vars.color = vec4(0, 0, 0, 1);
+			Image(PLUS);
+				vars.pivot = vars.anchor = CENTER;
+				vars.size = vec2(60);
 			EndNode();
 		EndNode();
 		Button(&lessWidgets, PRESS);
 			vars.pivot = vars.anchor = CENTER_LEFT;
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
-			gui::Text("-");
-				vars.margin = Edges::All(0.01f);
-				vars.size = vec2(0);
-				vars.textAlignment = CENTER;
-				vars.fontSize = 1.1f;
-				vars.color = vec4(0, 0, 0, 1);
+			Image(MINUS);
+				vars.pivot = vars.anchor = CENTER;
+				vars.size = vec2(60);
 			EndNode();
 		EndNode();
 	EndNode();
@@ -106,7 +92,6 @@ void Update(float dt)
 		windows.pop_back();
 	}
 	
-
 	std::stringstream stream;
 	stream << std::fixed << std::setprecision(2) << GetAvgFrameTime() * 1000.f;
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + stream.str() + "ms)");
