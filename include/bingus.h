@@ -604,8 +604,8 @@ struct GUIWidgetVars
 	bool* state;
 	bool hoveredState;
 	InputState eventState;
-	void (*onPress)();
-	void (*onHold)();
+	std::function<void(void)> onPress;
+	std::function<void(void)> onHold;
 
 	GUIWidgetVars();
 };

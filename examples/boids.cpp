@@ -27,6 +27,7 @@ struct Boid
 
 std::vector<Boid> boids;
 
+float timestep;
 float alignmentWeight = 0.f;// 0.0005f;
 float cohesionWeight = 0.f;// 0.005f;
 float separationWeight = 0.f;// 0.001f;
@@ -55,6 +56,8 @@ void Start()
 	controlWindow.pos = vec2(25, 25);
 	controlWindow.minSize = vec2(450, 500);
 	controlWindow.maxSize = controlWindow.minSize;
+
+	timestep = GetFixedTimestep();
 
 	//Set up sprite batch
 	spriteSheet = SpriteSheet("triangle.png", { { "triangle", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
@@ -115,44 +118,40 @@ void Reset()
 void GUIControl(std::string label, float* value)
 {
 	Widget();
-
 		vars.size = vec2(400, 50);
-
 		Layout(HORIZONTAL);
 			vars.size = vec2(0);
 			vars.margin = Edges::All(15.f);
 			vars.spacing = 4.f;
-
 			gui::Text(label);
 				vars.size = vec2(150, 50);
 				vars.textAlignment = CENTER_LEFT;
 			EndNode();
 			Button();
 				vars.size = vec2(50);
+				vars.onPress = [value]() {
+					*value *= 0.95f;
+				};
 				Image(MINUS);
 					vars.pivot = vars.anchor = CENTER;
 					vars.size = vec2(35);
-					vars.onPress = [value]() {
-						*value *= 0.95f;
-					};
 				EndNode();
 			EndNode();
-
 			gui::Text(std::to_string(*value));
 				vars.size = vec2(150, 50);
 				vars.textAlignment = CENTER;
 			EndNode();
-
 			Button();
 				vars.size = vec2(50);
+				vars.onPress = [value]() {
+					*value *= 1.05f;
+				};
 				Image(PLUS);
 					vars.pivot = vars.anchor = CENTER;
 					vars.size = vec2(35);
 				EndNode();
 			EndNode();
-
 		EndNode();
-
 	EndNode();
 }
 
@@ -169,6 +168,8 @@ void Update(float dt)
 		Layout(VERTICAL);
 			vars.size = vec2(0);
 			vars.margin = Edges::All(0.001f);
+
+			GUIControl("Timestep: ", &timestep);
 			
 		EndNode();
 	
@@ -264,6 +265,9 @@ void Update(float dt)
 		gui::vars.margin = Edges::All(25);
 		gui::vars.size = vec2(0);
 	gui::EndNode();
+
+	//Logic
+	SetFixedTimestep(timestep);
 }
 
 void Draw()
