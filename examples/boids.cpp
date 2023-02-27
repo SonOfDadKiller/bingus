@@ -54,7 +54,7 @@ void Start()
 {
 	//Control Window
 	controlWindow.pos = vec2(25, 25);
-	controlWindow.minSize = vec2(450, 500);
+	controlWindow.minSize = vec2(500, 600);
 	controlWindow.maxSize = controlWindow.minSize;
 
 	timestep = GetFixedTimestep();
@@ -118,13 +118,14 @@ void Reset()
 void GUIControl(std::string label, float* value)
 {
 	Widget();
-		vars.size = vec2(400, 50);
+		vars.margin = Edges::None();
+		vars.size = vec2(0, 50);
 		Layout(HORIZONTAL);
 			vars.size = vec2(0);
-			vars.margin = Edges::All(15.f);
+			vars.margin = Edges::All(0.001f);
 			vars.spacing = 4.f;
 			gui::Text(label);
-				vars.size = vec2(150, 50);
+				vars.size = vec2(200, 50);
 				vars.textAlignment = CENTER_LEFT;
 			EndNode();
 			Button();
@@ -161,102 +162,34 @@ void Update(float dt)
 	ZoneScoped;
 #endif
 
-	float menuHue = 0.6f;
-
+	//GUI
 	Window(&controlWindow);
-		
 		Layout(VERTICAL);
 			vars.size = vec2(0);
-			vars.margin = Edges::All(0.001f);
+			vars.margin = Edges::All(15.f);
+			vars.spacing = 4.f;
 
 			GUIControl("Timestep: ", &timestep);
-			
+			GUIControl("Alignment: ", &alignmentWeight);
+			GUIControl("Cohesion: ", &cohesionWeight);
+			GUIControl("Separation: ", &separationWeight);
+			GUIControl("Cursor Weight: ", &cursorWeight);
+			GUIControl("Acceleration: ", &acceleration);
+			GUIControl("Drag: ", &drag);
+			GUIControl("Max Speed: ", &maxSpeed);
 		EndNode();
-	
 
-
-
-	//controlsRoot = new UIImage(vec2(-25, -25), vec2(520, 500), TOP_RIGHT, TOP_RIGHT);
-	//controlsRoot->spriteRow = 0;
-	//controlsRoot->spriteColumn = 0;
-	//controlsRoot->color = hsv(vec4(0.6, 0.4, 0.4, 0.5));
-
-	////Controllable Fields
-	//float* fieldVariables[8] = {
-	//	&stepTime,
-	//	& alignmentWeight,
-	//	& cohesionWeight,
-	//	& separationWeight,
-	//	& cursorWeight,
-	//	& acceleration,
-	//	& drag,
-	//	& maxSpeed
-	//};
-
-	//std::string fieldTitles[8] = {
-	//	"Timestep:",
-	//	"Alignment Weight:",
-	//	"Cohesion Weight:",
-	//	"Separation Weight:",
-	//	"Cursor Weight:",
-	//	"Acceleration:",
-	//	"Drag:",
-	//	"Max Speed:"
-	//};
-
-	//for (int i = 0; i < 8; i++)
-	//{
-	//	ControlsField* field = new ControlsField();
-	//	controllableFields.push_back(field);
-	//	field->data = fieldVariables[i];
-	//	
-	//	UINode* base = new UINode(controlsRoot, vec2(20, -20 - i * 45.f), vec2(600, 40), TOP_LEFT, TOP_LEFT);
-
-	//	UIText* title = new UIText(base, vec2(0, 0), vec2(250, 40), CENTER_LEFT, CENTER_LEFT);
-	//	title->fontSize = 1.f;
-	//	title->color = vec4(1.f);
-	//	title->data = fieldTitles[i];
-
-	//	UIButton* minus = new UIButton(base, vec2(260, 0), vec2(40, 40), CENTER_LEFT, CENTER_LEFT);
-	//	minus->spriteColumn = 8;
-	//	minus->color = hsv(vec4(menuHue, 0.4, 0.8, 1));
-
-	//	UIButton* plus = new UIButton(base, vec2(310, 0), vec2(40, 40), CENTER_LEFT, CENTER_LEFT);
-	//	plus->spriteColumn = 9;
-	//	plus->color = hsv(vec4(menuHue, 0.4, 0.8, 1));
-
-	//	field->text = new UIText(base, vec2(360, 0), vec2(130, 40), CENTER_LEFT, CENTER_LEFT);
-	//	field->text->fontSize = 1.f;
-	//	field->text->color = vec4(1.f);
-	//	field->text->data = std::to_string(*field->data);
-
-	//	minus->onPress = [field]() {
-	//		(*field->data) *= 0.95f;
-	//		field->text->data = std::to_string(*field->data);
-	//	};
-
-	//	plus->onPress = [field]() {
-	//		(*field->data) *= 1.05f;
-	//		field->text->data = std::to_string(*field->data);
-	//	};
-	//}
-
-	//resetButton = new UIButton(controlsRoot, vec2(0, 16), vec2(150, 40), BOTTOM_CENTER, BOTTOM_CENTER);
-	//resetButton->spriteRow = 0;
-	//resetButton->spriteColumn = 0;
-	//resetButton->color = hsv(vec4(menuHue, 0.4, 0.8, 1));
-	//resetButton->onPress = ECSTestReset;
-
-	//resetButtonText = new UIText(resetButton, vec2(0), vec2(150, 40), CENTER, CENTER);
-	//resetButtonText->color = vec4(1.f);
-	//resetButtonText->fontSize = 1.f;
-	//resetButtonText->data = "Reset";
-
-	//displayText = new UIText(vec2(22, -22), vec2(1000.f, 100.f), TOP_LEFT, TOP_LEFT);
-	//displayText->font = Fonts::arial;
-	//displayText->fontSize = 1.f;
-
-
+		Button();
+			vars.pivot = vars.anchor = BOTTOM_CENTER;
+			vars.margin = Edges::All(15.f);
+			vars.size = vec2(140, 50);
+			gui::Text("Reset");
+				vars.size = vec2(0);
+				vars.margin = Edges::All(0.001f);
+				vars.textAlignment = CENTER;
+			EndNode();
+			vars.onPress = Reset;
+		EndNode();
 	EndNode();
 	
 	std::stringstream stream;

@@ -662,7 +662,7 @@ namespace gui
 			window->size = glm::clamp(window->size, window->minSize, window->maxSize);
 
 
-
+			//Background
 			Image(BOX);
 				vars.margin = Edges::All(0.001);
 				vars.size = vec2(0);
