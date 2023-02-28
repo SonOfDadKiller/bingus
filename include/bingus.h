@@ -68,6 +68,7 @@ float GetTime();
 
 void SetFixedTimestep(float dt);
 float GetFixedTimestep();
+float GetTimestepAlpha();
 
 struct Timer
 {
@@ -570,14 +571,12 @@ void BuildGUI();
 void ProcessGUIInput();
 void DrawGUI();
 
-//TODO: Margin
-//TODO: Vertical/Horizontal Layout
 //TODO: Slider
 //TODO: Scroll Rect
 //TODO: Radial Button
 
 enum LayoutType { NONE, HORIZONTAL, VERTICAL };
-enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, LAYOUT, MASK, WINDOW };
+enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, SLIDER, LAYOUT, MASK, WINDOW };
 enum GUIImageSource { BLOCK, BOX, CROSS, TICK, MINUS, PLUS, ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT };
 
 struct GUIWidgetVars
@@ -606,6 +605,10 @@ struct GUIWidgetVars
 	InputState eventState;
 	std::function<void(void)> onPress;
 	std::function<void(void)> onHold;
+
+	float* value;
+	float min;
+	float max;
 
 	GUIWidgetVars();
 };
@@ -650,11 +653,12 @@ namespace gui
 {
 	u32 Widget();
 	u32 Image(GUIImageSource source);
-	u32 Layout(LayoutType type);
 	u32 Text(std::string text);
 	u32 Button();
 	u32 Button(bool* state, InputState eventState);
 	u32 Tickbox(bool* state);
+	u32 Slider(float* value);
+	u32 Layout(LayoutType type);
 	u32 Mask();
 	u32 Window(GUIWindow* window);
 	void EndNode();

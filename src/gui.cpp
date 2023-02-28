@@ -435,6 +435,10 @@ GUIWidgetVars::GUIWidgetVars()
 	eventState = PRESS;
 	onPress = nullptr;
 	onHold = nullptr;
+
+	value = nullptr;
+	min = 0.f;
+	max = 1.f;
 }
 
 namespace gui
@@ -476,19 +480,6 @@ namespace gui
 		widgets[widgetID].type = IMAGE;
 
 		vars.source = _source;
-
-		return widgetID;
-	}
-
-	u32 Layout(LayoutType type)
-	{
-#ifdef TRACY_ENABLE
-		ZoneScoped;
-#endif
-		u32 widgetID = Widget();
-		widgets[widgetID].type = LAYOUT;
-
-		vars.layoutType = type;
 
 		return widgetID;
 	}
@@ -542,6 +533,35 @@ namespace gui
 
 		assert(state != nullptr);
 		vars.state = state;
+
+		return widgetID;
+	}
+
+	u32 Slider(float* value)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = SLIDER;
+
+		assert(value != nullptr);
+		vars.value = value;
+
+		
+
+		return widgetID;
+	}
+
+	u32 Layout(LayoutType type)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = LAYOUT;
+
+		vars.layoutType = type;
 
 		return widgetID;
 	}
@@ -660,7 +680,6 @@ namespace gui
 			}
 
 			window->size = glm::clamp(window->size, window->minSize, window->maxSize);
-
 
 			//Background
 			Image(BOX);

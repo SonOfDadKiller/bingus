@@ -7,14 +7,9 @@ using namespace gui;
 
 void Start();
 void Update(float dt);
+void FixedUpdate(float dt);
 void Draw();
 void Reset();
-
-GUIWindow controlWindow;
-bool tickboxState;
-
-SpriteBatch spriteBatch;
-SpriteSheet spriteSheet;
 
 struct Boid
 {
@@ -23,11 +18,18 @@ struct Boid
 	vec2 size;
 	vec2 velocity;
 	vec2 oldVelocity;
+	vec4 color;
 };
+
+GUIWindow controlWindow;
+bool tickboxState;
+
+SpriteBatch spriteBatch;
+SpriteSheet spriteSheet;
 
 std::vector<Boid> boids;
 
-float timestep;
+float timestep = 1.f / 60.f;
 float alignmentWeight = 0.f;// 0.0005f;
 float cohesionWeight = 0.f;// 0.005f;
 float separationWeight = 0.f;// 0.001f;
@@ -43,6 +45,7 @@ int main()
 
 	SetGameStartFunction(Start);
 	SetGameUpdateFunction(Update);
+	SetGameFixedUpdateFunction(FixedUpdate);
 	SetGameDrawFunction(Draw);
 	
 	RunGame();
@@ -56,8 +59,6 @@ void Start()
 	controlWindow.pos = vec2(25, 25);
 	controlWindow.minSize = vec2(500, 600);
 	controlWindow.maxSize = controlWindow.minSize;
-
-	timestep = GetFixedTimestep();
 
 	//Set up sprite batch
 	spriteSheet = SpriteSheet("triangle.png", { { "triangle", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
@@ -108,11 +109,44 @@ void Start()
 	{
 		Reset();
 	});
+
+	Reset();
 }
 
 void Reset()
 {
+	boids.clear();
 
+	//Create flock
+	int flockCount = 100;
+	#ifdef NDEBUG
+	flockCount = 35000;
+	#endif
+
+	for (int i = 0; i < flockCount; i++)
+	{
+		static const float pi = 3.14159265;
+		float circlePos = (float)i / flockCount;
+		float f = circlePos * pi * 2.f;
+		vec2 pos = vec2(sin(f), cos(f)) * 1.f;
+
+		Boid boid;
+		boid.position = pos;
+		boid.oldPosition = pos;
+		boid.size = vec2(0.1f, 0.15f) * 1.5f;
+		boid.velocity = vec2(0);
+
+		if (i % 2 == 0)
+		{
+			boid.color = hsv(vec4(circlePos, 0.6f, 1.f, 0.8f));
+		}
+		else
+		{
+			boid.color = hsv(vec4(0.5f - circlePos * 0.5f, 0.6f, 1.f, 0.8f));
+		}
+
+		boids.push_back(boid);
+	}
 }
 
 void GUIControl(std::string label, float* value)
@@ -156,6 +190,70 @@ void GUIControl(std::string label, float* value)
 	EndNode();
 }
 
+void FixedUpdate(float dt)
+{
+	//Flocking algorithm
+	for (auto it = boids.begin(); it != boids.end(); it++)
+	{
+		//u32 neighbourCount = 0;
+		//vec2 alignment = vec2(0);
+		//vec2 cohesion = vec2(0);
+		//vec2 separation = vec2(0);
+
+		//vec2 avgNeighbourPos = vec2(0);
+		//vec2 avgNeighbourVel = vec2(0);
+		//vec2 avgNeighbourDist = vec2(0);
+
+		///*for (auto neighbour_it = boids.begin(); neighbour_it != boids.end(); neighbour_it++)
+		//{
+		//	if (it != neighbour_it)
+		//	{
+		//		if (glm::distance(it->position, neighbour_it->position) < 3.f)
+		//		{
+		//			avgNeighbourVel += neighbour_it->velocity;
+		//			avgNeighbourPos += neighbour_it->position;
+		//			avgNeighbourDist += neighbour_it->position - it->position;
+		//			neighbourCount++;
+		//		}
+		//	}
+		//}*/
+
+		//if (neighbourCount != 0)
+		//{
+		//	avgNeighbourVel /= neighbourCount;
+		//	avgNeighbourPos /= neighbourCount;
+		//	avgNeighbourDist /= neighbourCount;
+		//}
+
+		//alignment = avgNeighbourVel;
+		//cohesion = avgNeighbourPos - transform.position;
+		//separation = -avgNeighbourDist;
+		vec2 cursorMove = (vec2(mouseWorldPosition) - it->position);
+
+		/*if (alignment != vec2(0)) alignment = glm::normalize(alignment);
+		if (cohesion != vec2(0)) cohesion = glm::normalize(cohesion);
+		if (separation != vec2(0)) separation = glm::normalize(separation);*/
+		if (cursorMove != vec2(0)) cursorMove = glm::normalize(cursorMove);
+
+		it->oldVelocity = it->velocity;
+		
+		/*it->velocity += (alignment * alignmentWeight
+						+ cohesion * cohesionWeight
+						+ separation * separationWeight
+						+ cursorMove * cursorWeight)
+						* acceleration;*/
+
+		it->velocity += cursorMove * cursorWeight * acceleration;
+
+		float speed = glm::length(it->velocity);
+		float newSpeed = glm::clamp(speed - drag, 0.f, maxSpeed);
+		it->velocity = glm::normalize(it->velocity) * newSpeed;
+
+		it->oldPosition = it->position;
+		it->position += it->velocity;
+	}
+}
+
 void Update(float dt)
 {
 #ifdef TRACY_ENABLE
@@ -183,12 +281,12 @@ void Update(float dt)
 			vars.pivot = vars.anchor = BOTTOM_CENTER;
 			vars.margin = Edges::All(15.f);
 			vars.size = vec2(140, 50);
+			vars.onPress = Reset;
 			gui::Text("Reset");
 				vars.size = vec2(0);
 				vars.margin = Edges::All(0.001f);
 				vars.textAlignment = CENTER;
 			EndNode();
-			vars.onPress = Reset;
 		EndNode();
 	EndNode();
 	
@@ -205,5 +303,18 @@ void Update(float dt)
 
 void Draw()
 {
-	
+	//Draw sprites
+	spriteBatch.Clear();
+
+	for (auto it = boids.begin(); it != boids.end(); it++)
+	{
+		vec2 pos2 = glm::mix(it->oldPosition, it->position, GetTimestepAlpha());
+		vec3 pos = vec3(pos2.x, pos2.y, 0.f);
+		vec2 mixVelocity = glm::mix(it->oldVelocity, it->velocity, GetTimestepAlpha());
+		float rotation = glm::degrees(atan2(mixVelocity.y, mixVelocity.x)) + 270.f;
+		spriteBatch.PushSprite(Sprite(pos, it->size, CENTER, rotation, Edges::None(), 
+			it->color, &spriteSheet.sequences["triangle"], 0));
+	}
+
+	spriteBatch.Draw();
 }

@@ -29,7 +29,7 @@ float CalcAverageTick(float newtick)
 static float gameTime;
 static float stepAccumulator = 0.f;
 static float timestep = 1.f / 60.f;
-static float stepAlpha;
+static float timestepAlpha;
 
 float GetTime()
 {
@@ -54,6 +54,11 @@ void SetFixedTimestep(float _timestep)
 float GetFixedTimestep()
 {
 	return timestep;
+}
+
+float GetTimestepAlpha()
+{
+	return timestepAlpha;
 }
 
 //Timers
@@ -166,7 +171,7 @@ void RunGame()
 		BuildGUI();
 		ProcessGUIInput();
 
-		stepAlpha = stepAccumulator / dt;
+		timestepAlpha = stepAccumulator / dt;
 
 		//Draw
 		glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
