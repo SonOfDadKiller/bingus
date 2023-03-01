@@ -171,7 +171,7 @@ void RunGame()
 		BuildGUI();
 		ProcessGUIInput();
 
-		timestepAlpha = stepAccumulator / dt;
+		timestepAlpha = stepAccumulator / timestep;
 
 		//Draw
 		glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
