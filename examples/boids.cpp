@@ -149,46 +149,7 @@ void Reset()
 	}
 }
 
-void GUIControl(std::string label, float* value)
-{
-	Widget();
-		vars.margin = Edges::None();
-		vars.size = vec2(0, 50);
-		Layout(HORIZONTAL);
-			vars.size = vec2(0);
-			vars.margin = Edges::All(0.001f);
-			vars.spacing = 4.f;
-			gui::Text(label);
-				vars.size = vec2(200, 50);
-				vars.textAlignment = CENTER_LEFT;
-			EndNode();
-			Button();
-				vars.size = vec2(50);
-				vars.onPress = [value]() {
-					*value *= 0.95f;
-				};
-				Image(MINUS);
-					vars.pivot = vars.anchor = CENTER;
-					vars.size = vec2(35);
-				EndNode();
-			EndNode();
-			gui::Text(std::to_string(*value));
-				vars.size = vec2(150, 50);
-				vars.textAlignment = CENTER;
-			EndNode();
-			Button();
-				vars.size = vec2(50);
-				vars.onPress = [value]() {
-					*value *= 1.05f;
-				};
-				Image(PLUS);
-					vars.pivot = vars.anchor = CENTER;
-					vars.size = vec2(35);
-				EndNode();
-			EndNode();
-		EndNode();
-	EndNode();
-}
+
 
 void FixedUpdate(float dt)
 {
@@ -252,6 +213,47 @@ void FixedUpdate(float dt)
 		it->oldPosition = it->position;
 		it->position += it->velocity;
 	}
+}
+
+void GUIControl(std::string label, float* value)
+{
+	Widget();
+		vars.margin = Edges::None();
+		vars.size = vec2(0, 50);
+		Layout(HORIZONTAL);
+			vars.size = vec2(0);
+			vars.margin = Edges::All(0.001f);
+			vars.spacing = 4.f;
+			gui::Text(label);
+				vars.size = vec2(200, 50);
+				vars.textAlignment = CENTER_LEFT;
+			EndNode();
+			Button();
+				vars.size = vec2(50);
+				vars.onPress = [value]() {
+					*value *= 0.95f;
+				};
+				Image(MINUS);
+					vars.pivot = vars.anchor = CENTER;
+					vars.size = vec2(35);
+				EndNode();
+			EndNode();
+			gui::Text(std::to_string(*value));
+				vars.size = vec2(150, 50);
+				vars.textAlignment = CENTER;
+			EndNode();
+			Button();
+				vars.size = vec2(50);
+				vars.onPress = [value]() {
+					*value *= 1.05f;
+				};
+				Image(PLUS);
+					vars.pivot = vars.anchor = CENTER;
+					vars.size = vec2(35);
+				EndNode();
+			EndNode();
+		EndNode();
+	EndNode();
 }
 
 void Update(float dt)
