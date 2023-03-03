@@ -237,6 +237,21 @@ void GUIWidget::Draw()
 		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 2));
 	}
 	break;
+	case SLIDER:
+	{
+		float sliderVal = (vars.min + *vars.value) / (vars.min + vars.max);
+		vec2 linePos = vars.pos + vec2(vars.size.x * sliderVal, 0.f);
+		vec2 lineSize = vec2(2.f, vars.size.y);
+
+		NormalizeRect(_position, _size);
+		NormalizeRect(linePos, lineSize);
+		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _textColor = glm::mix(vars.color, vec4(1.f, 1.f, 1.f, vars.color.w), 0.7f);
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, Edges::None(), _color, spriteSequence, 0));
+		renderQueue.PushSprite(Sprite(vec3(linePos, depth), lineSize, BOTTOM_LEFT, 0.f, Edges::None(), vec4(1.f), spriteSequence, 0));
+		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(_position, depth), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
+	}
+	break;
 	case MASK:
 		NormalizeRect(_position, _size);
 
@@ -334,6 +349,29 @@ void GUIWidget::ProcessInput()
 
 		*vars.state = guiMouseState == PRESS && vars.hoveredState ? !(*vars.state) : *vars.state;
 		break;
+	case SLIDER:
+		if (activeInputWidget == 0)
+		{
+			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
+				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
+
+			if (vars.hoveredState) 
+			{
+				activeInputWidget = id;
+			}
+		}
+		else
+		{
+			vars.hoveredState = false;
+		}
+
+		if (vars.hoveredState && guiMouseState == PRESS)
+		{
+			float sliderVal = glm::clamp((mousePosition.x - vars.pos.x) / vars.size.x, 0.f, 1.f);
+			*vars.value = glm::mix(vars.min, vars.max, sliderVal);
+			if (vars.onValueChanged != nullptr) vars.onValueChanged(*vars.value);
+		}
+		break;
 	case MASK:
 		masks.pop_back();
 		break;
@@ -383,7 +421,14 @@ void ProcessGUIInput()
 			if (inputWidget->vars.onHold != nullptr) inputWidget->vars.onHold();
 			
 			break;
+		case SLIDER:
+			
+			float sliderVal = glm::clamp((mousePosition.x - inputWidget->vars.pos.x) / inputWidget->vars.size.x, 0.f, 1.f);
+			*inputWidget->vars.value = glm::mix(inputWidget->vars.min, inputWidget->vars.max, sliderVal);
+			if (inputWidget->vars.onValueChanged != nullptr) inputWidget->vars.onValueChanged(*inputWidget->vars.value);
+			break;
 		}
+	
 
 		return;
 	}
@@ -419,7 +464,7 @@ GUIWidgetVars::GUIWidgetVars()
 
 	source = BLOCK;
 	color = vec4(1);
-	nineSliceMargin = Edges::All(8);
+	nineSliceMargin = Edges::All(8.f);
 
 	layoutType = NONE;
 	spacing = 0.f;
@@ -439,6 +484,7 @@ GUIWidgetVars::GUIWidgetVars()
 	value = nullptr;
 	min = 0.f;
 	max = 1.f;
+	onValueChanged = nullptr;
 }
 
 namespace gui
@@ -480,6 +526,11 @@ namespace gui
 		widgets[widgetID].type = IMAGE;
 
 		vars.source = _source;
+
+		/*if (_source == BOX)
+		{
+			vars.nineSliceMargin = Edges::All(8.f);
+		}*/
 
 		return widgetID;
 	}
@@ -547,8 +598,8 @@ namespace gui
 
 		assert(value != nullptr);
 		vars.value = value;
-
-		
+		vars.color = vec4(0.3, 0.3, 0.3, 1.f);
+		vars.textAlignment = CENTER_LEFT;
 
 		return widgetID;
 	}

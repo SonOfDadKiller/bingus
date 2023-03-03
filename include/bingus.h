@@ -605,10 +605,11 @@ struct GUIWidgetVars
 	InputState eventState;
 	std::function<void(void)> onPress;
 	std::function<void(void)> onHold;
-
+	
 	float* value;
 	float min;
 	float max;
+	std::function<void(float)> onValueChanged;
 
 	GUIWidgetVars();
 };

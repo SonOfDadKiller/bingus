@@ -215,7 +215,7 @@ void FixedUpdate(float dt)
 	}
 }
 
-void GUIControl(std::string label, float* value)
+void GUIControl(std::string label, float* value, float min, float max)
 {
 	Widget();
 		vars.margin = Edges::None();
@@ -228,29 +228,10 @@ void GUIControl(std::string label, float* value)
 				vars.size = vec2(200, 50);
 				vars.textAlignment = CENTER_LEFT;
 			EndNode();
-			Button();
-				vars.size = vec2(50);
-				vars.onPress = [value]() {
-					*value *= 0.95f;
-				};
-				Image(MINUS);
-					vars.pivot = vars.anchor = CENTER;
-					vars.size = vec2(35);
-				EndNode();
-			EndNode();
-			gui::Text(std::to_string(*value));
-				vars.size = vec2(150, 50);
-				vars.textAlignment = CENTER;
-			EndNode();
-			Button();
-				vars.size = vec2(50);
-				vars.onPress = [value]() {
-					*value *= 1.05f;
-				};
-				Image(PLUS);
-					vars.pivot = vars.anchor = CENTER;
-					vars.size = vec2(35);
-				EndNode();
+			Slider(value);
+				vars.size = vec2(250, 50);
+				vars.min = min;
+				vars.max = max;
 			EndNode();
 		EndNode();
 	EndNode();
@@ -269,14 +250,17 @@ void Update(float dt)
 			vars.margin = Edges::All(15.f);
 			vars.spacing = 4.f;
 
-			GUIControl("Timestep: ", &timestep);
-			GUIControl("Alignment: ", &alignmentWeight);
-			GUIControl("Cohesion: ", &cohesionWeight);
-			GUIControl("Separation: ", &separationWeight);
-			GUIControl("Cursor Weight: ", &cursorWeight);
-			GUIControl("Acceleration: ", &acceleration);
-			GUIControl("Drag: ", &drag);
-			GUIControl("Max Speed: ", &maxSpeed);
+			GUIControl("Timestep: ", &timestep, 1.f / 144.f, 1.f / 1.f);
+			//GUIControl("Alignment: ", &alignmentWeight);
+			//GUIControl("Cohesion: ", &cohesionWeight);
+			//GUIControl("Separation: ", &separationWeight);
+			GUIControl("Cursor Weight: ", &cursorWeight, 0.f, 0.2f);
+			GUIControl("Acceleration: ", &acceleration, 0.f, 3.f);
+			GUIControl("Drag: ", &drag, 0.f, 0.01f);
+			GUIControl("Max Speed: ", &maxSpeed, 0.01f, 1.f);
+
+
+
 		EndNode();
 
 		Button();
