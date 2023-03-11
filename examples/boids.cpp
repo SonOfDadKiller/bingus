@@ -149,8 +149,6 @@ void Reset()
 	}
 }
 
-
-
 void FixedUpdate(float dt)
 {
 	//Flocking algorithm
@@ -258,9 +256,6 @@ void Update(float dt)
 			GUIControl("Acceleration: ", &acceleration, 0.f, 3.f);
 			GUIControl("Drag: ", &drag, 0.f, 0.01f);
 			GUIControl("Max Speed: ", &maxSpeed, 0.01f, 1.f);
-
-
-
 		EndNode();
 
 		Button();

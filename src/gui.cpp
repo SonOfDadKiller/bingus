@@ -239,8 +239,9 @@ void GUIWidget::Draw()
 	break;
 	case SLIDER:
 	{
-		float sliderVal = (vars.min + *vars.value) / (vars.min + vars.max);
-		vec2 linePos = vars.pos + vec2(vars.size.x * sliderVal, 0.f);
+
+		float sliderVal = (*vars.value - vars.min) / (vars.max - vars.min);
+		vec2 linePos = vars.pos + vec2(vars.size.x * sliderVal - 1.f, 0.f);
 		vec2 lineSize = vec2(2.f, vars.size.y);
 
 		NormalizeRect(_position, _size);
@@ -428,7 +429,6 @@ void ProcessGUIInput()
 			if (inputWidget->vars.onValueChanged != nullptr) inputWidget->vars.onValueChanged(*inputWidget->vars.value);
 			break;
 		}
-	
 
 		return;
 	}
