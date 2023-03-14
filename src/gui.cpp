@@ -42,6 +42,8 @@ void InitializeGUI()
 			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 7.f, 0), vec2(uiFrameSize.x * 8.f, uiFrameSize.y))),
 			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 8.f, 0), vec2(uiFrameSize.x * 9.f, uiFrameSize.y))),
 			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 9.f, 0), vec2(uiFrameSize.x * 10.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 10.f, 0), vec2(uiFrameSize.x * 11.f, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::All(8), Rect(vec2(uiFrameSize.x * 11.f, 0), vec2(uiFrameSize.x * 12.f, uiFrameSize.y))),
 		})}
 	});
 
@@ -241,16 +243,21 @@ void GUIWidget::Draw()
 	{
 
 		float sliderVal = (*vars.value - vars.min) / (vars.max - vars.min);
-		vec2 linePos = vars.pos + vec2(vars.size.x * sliderVal - 1.f, 0.f);
+		vec2 linePos = vars.pos + vec2((vars.size.x - 2.f) * sliderVal, 0.f);
 		vec2 lineSize = vec2(2.f, vars.size.y);
+
+		vec2 textPos = vars.pos + vec2(4.f, 0.f);
+		vec2 textSize = vars.size;
 
 		NormalizeRect(_position, _size);
 		NormalizeRect(linePos, lineSize);
+		NormalizeRect(textPos, textSize);
+		NormalizeEdges(vars.nineSliceMargin);
 		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
 		vec4 _textColor = glm::mix(vars.color, vec4(1.f, 1.f, 1.f, vars.color.w), 0.7f);
-		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, Edges::None(), _color, spriteSequence, 0));
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 11));
 		renderQueue.PushSprite(Sprite(vec3(linePos, depth), lineSize, BOTTOM_LEFT, 0.f, Edges::None(), vec4(1.f), spriteSequence, 0));
-		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(_position, depth), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
+		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
 	}
 	break;
 	case MASK:
@@ -423,7 +430,6 @@ void ProcessGUIInput()
 			
 			break;
 		case SLIDER:
-			
 			float sliderVal = glm::clamp((mousePosition.x - inputWidget->vars.pos.x) / inputWidget->vars.size.x, 0.f, 1.f);
 			*inputWidget->vars.value = glm::mix(inputWidget->vars.min, inputWidget->vars.max, sliderVal);
 			if (inputWidget->vars.onValueChanged != nullptr) inputWidget->vars.onValueChanged(*inputWidget->vars.value);
@@ -598,7 +604,7 @@ namespace gui
 
 		assert(value != nullptr);
 		vars.value = value;
-		vars.color = vec4(0.3, 0.3, 0.3, 1.f);
+		//vars.color = vec4(0.3, 0.3, 0.3, 1.f);
 		vars.textAlignment = CENTER_LEFT;
 
 		return widgetID;
