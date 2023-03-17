@@ -378,6 +378,8 @@ struct TextBatch : RenderBatch
 
 struct RenderQueue
 {
+	//TODO: Perhaps this should allow more control. Could be more flexible if I split up everything that happens in Clear()
+	//TODO: Implement a RenderTree - this will save some batches in the GUI render
 	std::vector<SpriteBatch> spriteBatches;
 	u32 currentSpriteBatchIndex;
 	std::vector<TextBatch> textBatches;
@@ -401,6 +403,7 @@ struct RenderQueue
 	Font* font;
 
 	void Clear();
+	void PushStep();
 	void PushStep(void(*preDraw)(), void(*postDraw)());
 	void PushSprite(const Sprite& sprite);
 	void PushText(const Text& text);
@@ -408,6 +411,8 @@ struct RenderQueue
 };
 
 void InitializeRenderer();
+
+extern RenderQueue globalRenderQueue;
 
 //Camera stuff
 extern mat4 cameraProjection;

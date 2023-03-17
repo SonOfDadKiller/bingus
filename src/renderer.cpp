@@ -13,6 +13,8 @@
 #include <map>
 #include <algorithm>
 
+RenderQueue globalRenderQueue;
+
 //TODO: Pull sprite ownership out of renderer
 static vec2 cameraPosition = vec2(-1, -1);
 static float cameraSize;
@@ -48,6 +50,13 @@ void InitializeRenderer()
 	//Load fonts
 	Fonts::arial = LoadFont("arial.ttf", 80);
 	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
+
+	//Initialize global render queue
+	globalRenderQueue.buffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
+	globalRenderQueue.spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
+	globalRenderQueue.textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
+	globalRenderQueue.spriteSheet = &defaultGuiSpritesheet;
+	globalRenderQueue.font = Fonts::arial;
 }
 
 SpriteSequence::SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing)
@@ -515,7 +524,6 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 									frame->nineSliceSample.right / texture.size.x,
 									frame->nineSliceSample.bottom / texture.size.y,
 									frame->nineSliceSample.left / texture.size.x);
-		//vec2 uvSlice = vec2(sprite.nineSliceSample / texture.size.x, sprite.nineSliceSample / texture.size.y);
 
 		if (frame != nullptr)
 		{
@@ -657,7 +665,7 @@ void TextBatch::PushText(const Text& text)
 	ZoneScoped;
 #endif
 
-	//if (text.data == "") return;
+	if (text.data == "") return;
 
 	LazyInit();
 	bufferDirty = true;
@@ -681,6 +689,7 @@ void TextBatch::PushText(const Text& text)
 		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text.scale;
 		vec2 glyphSize = vec2(glyph->size) * actualSize * text.scale;
 
+		//TODO: Implement smarter new-lining that doesn't split words
 		bool newLine = false;
 
 		if (glyphPos.x + glyphSize.x >= text.extents.x)
@@ -778,6 +787,12 @@ void RenderQueue::Clear()
 	steps.clear();
 }
 
+void RenderQueue::PushStep()
+{
+	steps.push_back(Step());
+	stepIndex++;
+}
+
 void RenderQueue::PushStep(void(*preDraw)(), void(*postDraw)())
 {
 	Step step;
@@ -792,7 +807,7 @@ void RenderQueue::PushSprite(const Sprite& sprite)
 	u32 spriteBatchIndex;
 
 	//Create new steps if the index has grown past the current size
-	if (stepIndex + 1 > steps.size())
+	if ((size_t)stepIndex + 1 > steps.size())
 	{
 		for (u32 diff = (stepIndex + 1) - steps.size(); diff != 0; diff--)
 		{
@@ -808,7 +823,7 @@ void RenderQueue::PushSprite(const Sprite& sprite)
 	else
 	{
 		//Request/create sprite batch for this step
-		if (currentSpriteBatchIndex + 1 > spriteBatches.size())
+		if ((size_t)currentSpriteBatchIndex + 1 > spriteBatches.size())
 		{
 			spriteBatches.push_back(SpriteBatch(buffer, spriteShader, spriteSheet));
 		}
@@ -826,7 +841,7 @@ void RenderQueue::PushText(const Text& text)
 	u32 textBatchIndex;
 
 	//Create new steps if the index has grown past the current size
-	if (stepIndex + 1 > steps.size())
+	if ((size_t)stepIndex + 1 > steps.size())
 	{
 		for (u32 diff = (stepIndex + 1) - steps.size(); diff != 0; diff--)
 		{
@@ -842,7 +857,7 @@ void RenderQueue::PushText(const Text& text)
 	else
 	{
 		//Request/create sprite batch for this step
-		if (currentTextBatchIndex + 1 > textBatches.size())
+		if ((size_t)currentTextBatchIndex + 1 > textBatches.size())
 		{
 			textBatches.push_back(TextBatch(buffer, textShader, font));
 		}
@@ -857,6 +872,7 @@ void RenderQueue::PushText(const Text& text)
 
 void RenderQueue::Draw()
 {
+	//Iterate through steps in queue, triggering events and drawing their contents. Sprites draw before text.
 	for (u32 i = 0; i < steps.size(); i++)
 	{
 		if (steps[i].preDraw != nullptr) steps[i].preDraw();

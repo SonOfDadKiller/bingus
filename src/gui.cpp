@@ -20,12 +20,9 @@ static float guiDepth;
 static InputState guiMouseState;
 static vec2 guiMousePressPosition;
 
-
 SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
 Font* defaultGuiFont;
-
-
 
 void InitializeGUI()
 {
