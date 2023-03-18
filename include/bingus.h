@@ -232,6 +232,8 @@ struct Sprite
 	u32 sequenceFrame;
 	float rotation;
 
+	Sprite() { };
+
 	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
 		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr) { }
 
@@ -284,6 +286,7 @@ struct Text
 	vec2 alignment;
 	float textSize;
 
+	Text() { }
 	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
 		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
 	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
