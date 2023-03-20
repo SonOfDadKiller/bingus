@@ -24,7 +24,7 @@ SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
 Font* defaultGuiFont;
 
-void InitializeGUI()
+void InitializeGUI() 
 {
 	vec2 uiFrameSize = vec2(128);
 	defaultGuiSpritesheet = SpriteSheet("ui.png", {

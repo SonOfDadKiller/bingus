@@ -78,7 +78,8 @@ void Draw()
 	for (int i = 0; i < 10; i++)
 	{
 		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.15f);
-		spriteBatch.PushSprite(Sprite(position, vec2(0.3), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
+		globalRenderQueue.spriteSheet = &spriteSheet;
+		globalRenderQueue.PushSprite(Sprite(position, vec2(0.3), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	}
 
 	spriteBatch.PushSprite(Sprite(vec3(0.5, 0, 2.f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));

@@ -442,6 +442,7 @@ bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
 #define DEBUG_SCREEN 6
 
 void InitializeDebug();
+void UpdateDebug();
 
 struct DebugWidget
 {
@@ -514,8 +515,6 @@ struct TestEntity : Entity
 };
 
 //Input
-typedef std::function<void(float)> InputEvent;
-
 //TODO: Add rest of keyboard
 #define MOUSE_LEFT			0
 #define MOUSE_RIGHT			1
@@ -553,8 +552,48 @@ typedef std::function<void(float)> InputEvent;
 
 enum InputState
 {
-	PRESS, HOLD, RELEASE, UP
+	PRESS, HOLD, RELEASE
 };
+
+typedef std::function<void(void)> InputCallback;
+
+struct InputEvent
+{
+	u32 key;
+	InputState state;
+
+	bool operator==(const InputEvent& other)
+	{
+		return key == other.key && state == other.state;
+	}
+
+	bool operator!= (const InputEvent& other)
+	{
+		return !(*this == other);
+	}
+};
+
+struct InputBinding
+{
+	InputCallback callback;
+	bool blocking;
+};
+
+struct InputListener
+{
+	std::unordered_map<InputEvent, InputBinding> bindings;
+	i32 priority;
+	bool blocking;
+
+	InputListener() : InputListener(0, true) { }
+	InputListener(i32 priority, bool blocking = true);
+
+	void BindAction(u32 key, InputState state, InputCallback callback);
+	void BindAction(u32 key, InputState state, bool blocking, InputCallback callback);
+	void UnbindAction(u32 key, InputState state);
+};
+
+extern InputListener globalInputListener;
 
 extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;
@@ -562,10 +601,7 @@ extern vec2 mouseDelta;
 extern vec3 mouseWorldDelta;
 
 void InitializeInput(GLFWwindow* window);
-u32 BindInputAction(u32 key, InputState state, InputEvent fun);
-void UnbindInputAction(u32 key, InputState state, u32 id);
 void UpdateInput(GLFWwindow* window, float dt);
-InputState GetInputState(u32 key);
 
 //GUI
 extern SpriteSheet defaultGuiSpritesheet;

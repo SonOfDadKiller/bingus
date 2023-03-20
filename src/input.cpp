@@ -2,63 +2,16 @@
 #include <vector>
 #include "glm/ext/matrix_projection.hpp"
 
+InputListener globalInputListener;
 vec2 mousePosition;
 vec3 mouseWorldPosition;
 vec2 mouseDelta;
 vec3 mouseWorldDelta;
-
 vec2 mousePrevPosition;
 vec3 mousePrevWorldPosition;
 
-struct Action
-{
-	InputEvent fun;
-	u32 id;
-};
-
-struct Binding
-{
-	std::vector<Action> pressEvents;
-	std::vector<Action> downEvents;
-	std::vector<Action> releaseEvents;
-	InputState state;
-
-	void AddAction(Action action, InputState _state)
-	{
-		GetActions(_state)->push_back(action);
-	}
-
-	void FireEvents(InputState _state, float dt)
-	{
-		std::vector<Action>* actions = GetActions(_state);
-		if (actions == nullptr) return;
-
-		for (auto it = actions->begin(); it != actions->end(); it++)
-		{
-			it->fun(dt);
-		}
-	}
-
-	void FireEvents(float dt)
-	{
-		FireEvents(state, dt);
-	}
-
-	std::vector<Action>* GetActions(InputState _state)
-	{
-		switch (_state)
-		{
-			case PRESS: return &pressEvents;
-			case HOLD: return &downEvents;
-			case RELEASE: return &releaseEvents;
-		}
-
-		return nullptr;
-	}
-};
-
-static u32 currentActionID;
-static std::vector<Binding> bindings;
+static std::vector<InputListener> listeners;
+static std::vector<InputEvent> eventBuffer;
 
 void ScrollCallback(GLFWwindow* window, double x, double y)
 {
@@ -66,19 +19,19 @@ void ScrollCallback(GLFWwindow* window, double x, double y)
 	bindings[MOUSE_SCROLL_UP].state = y > 0 ? PRESS : UP;
 }
 
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+
+}
+
 void InitializeInput(GLFWwindow* window)
 {
-	bindings.reserve(KEY_END);
-	for (int i = 0; i < KEY_END; i++)
-	{
-		Binding binding;
-		binding.state = UP;
-		bindings.push_back(binding);
-	}
-
 	//Set up mouse
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	glfwSetScrollCallback(window, ScrollCallback);
+
+	//Set up keyboard callbacks
+	glfwSetKeyCallback(window, KeyCallback);
 }
 
 u32 BindInputAction(u32 key, InputState state, InputEvent fun)
@@ -171,53 +124,76 @@ void CalculateWorldMousePos(GLFWwindow* window)
 	mouseWorldDelta = mouseWorldPosition - mousePrevWorldPosition;
 }
 
+InputListener::InputListener(i32 priority, bool blocking)
+{
+	this->priority = priority;
+	this->blocking = blocking;
+}
+
+void InputListener::BindAction(u32 key, InputState state, InputCallback callback)
+{
+	BindAction(key, state, false, callback);
+}
+
+void InputListener::BindAction(u32 key, InputState state, bool blocking, InputCallback callback)
+{
+	bindings[{ key, state }] = { callback, blocking };
+}
+
+void InputListener::UnbindAction(u32 key, InputState state)
+{
+	bindings.erase({ key, state });
+}
+
 void UpdateInput(GLFWwindow* window, float dt)
 {
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
 
+	for (auto it = )
+
 	//TODO: Add rest of keyboard
-	UpdateBinding(MOUSE_LEFT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT), dt);
-	UpdateBinding(MOUSE_RIGHT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT), dt);
-
-	UpdateBinding(KEY_A, glfwGetKey(window, GLFW_KEY_A), dt);
-	UpdateBinding(KEY_B, glfwGetKey(window, GLFW_KEY_B), dt);
-	UpdateBinding(KEY_C, glfwGetKey(window, GLFW_KEY_C), dt);
-	UpdateBinding(KEY_D, glfwGetKey(window, GLFW_KEY_D), dt);
-	UpdateBinding(KEY_E, glfwGetKey(window, GLFW_KEY_E), dt);
-	UpdateBinding(KEY_F, glfwGetKey(window, GLFW_KEY_F), dt);
-	UpdateBinding(KEY_G, glfwGetKey(window, GLFW_KEY_G), dt);
-	UpdateBinding(KEY_H, glfwGetKey(window, GLFW_KEY_H), dt);
-	UpdateBinding(KEY_I, glfwGetKey(window, GLFW_KEY_I), dt);
-	UpdateBinding(KEY_J, glfwGetKey(window, GLFW_KEY_J), dt);
-	UpdateBinding(KEY_K, glfwGetKey(window, GLFW_KEY_K), dt);
-	UpdateBinding(KEY_L, glfwGetKey(window, GLFW_KEY_L), dt);
-	UpdateBinding(KEY_M, glfwGetKey(window, GLFW_KEY_M), dt);
-	UpdateBinding(KEY_N, glfwGetKey(window, GLFW_KEY_N), dt);
-	UpdateBinding(KEY_O, glfwGetKey(window, GLFW_KEY_O), dt);
-	UpdateBinding(KEY_P, glfwGetKey(window, GLFW_KEY_P), dt);
-	UpdateBinding(KEY_Q, glfwGetKey(window, GLFW_KEY_Q), dt);
-	UpdateBinding(KEY_R, glfwGetKey(window, GLFW_KEY_R), dt);
-	UpdateBinding(KEY_S, glfwGetKey(window, GLFW_KEY_S), dt);
-	UpdateBinding(KEY_T, glfwGetKey(window, GLFW_KEY_T), dt);
-	UpdateBinding(KEY_U, glfwGetKey(window, GLFW_KEY_U), dt);
-	UpdateBinding(KEY_V, glfwGetKey(window, GLFW_KEY_V), dt);
-	UpdateBinding(KEY_W, glfwGetKey(window, GLFW_KEY_W), dt);
-	UpdateBinding(KEY_X, glfwGetKey(window, GLFW_KEY_X), dt);
-	UpdateBinding(KEY_Y, glfwGetKey(window, GLFW_KEY_Y), dt);
-	UpdateBinding(KEY_Z, glfwGetKey(window, GLFW_KEY_Z), dt);
-
-	UpdateBinding(KEY_SPACE, glfwGetKey(window, GLFW_KEY_SPACE), dt);
-	UpdateBinding(KEY_ESCAPE, glfwGetKey(window, GLFW_KEY_ESCAPE), dt);
-
-	CalculateWorldMousePos(window);
-
-	//Step scroll, hacky but whatever
-	bindings[MOUSE_SCROLL_UP].FireEvents(dt);
-	bindings[MOUSE_SCROLL_DOWN].FireEvents(dt);
-	bindings[MOUSE_SCROLL_DOWN].state = UP;
-	bindings[MOUSE_SCROLL_UP].state = UP;
+// 	UpdateBinding(MOUSE_LEFT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT), dt);
+// 	UpdateBinding(MOUSE_RIGHT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT), dt);
+// 
+// 	UpdateBinding(KEY_A, glfwGetKey(window, GLFW_KEY_A), dt);
+// 	UpdateBinding(KEY_B, glfwGetKey(window, GLFW_KEY_B), dt);
+// 	UpdateBinding(KEY_C, glfwGetKey(window, GLFW_KEY_C), dt);
+// 	UpdateBinding(KEY_D, glfwGetKey(window, GLFW_KEY_D), dt);
+// 	UpdateBinding(KEY_E, glfwGetKey(window, GLFW_KEY_E), dt);
+// 	UpdateBinding(KEY_F, glfwGetKey(window, GLFW_KEY_F), dt);
+// 	UpdateBinding(KEY_G, glfwGetKey(window, GLFW_KEY_G), dt);
+// 	UpdateBinding(KEY_H, glfwGetKey(window, GLFW_KEY_H), dt);
+// 	UpdateBinding(KEY_I, glfwGetKey(window, GLFW_KEY_I), dt);
+// 	UpdateBinding(KEY_J, glfwGetKey(window, GLFW_KEY_J), dt);
+// 	UpdateBinding(KEY_K, glfwGetKey(window, GLFW_KEY_K), dt);
+// 	UpdateBinding(KEY_L, glfwGetKey(window, GLFW_KEY_L), dt);
+// 	UpdateBinding(KEY_M, glfwGetKey(window, GLFW_KEY_M), dt);
+// 	UpdateBinding(KEY_N, glfwGetKey(window, GLFW_KEY_N), dt);
+// 	UpdateBinding(KEY_O, glfwGetKey(window, GLFW_KEY_O), dt);
+// 	UpdateBinding(KEY_P, glfwGetKey(window, GLFW_KEY_P), dt);
+// 	UpdateBinding(KEY_Q, glfwGetKey(window, GLFW_KEY_Q), dt);
+// 	UpdateBinding(KEY_R, glfwGetKey(window, GLFW_KEY_R), dt);
+// 	UpdateBinding(KEY_S, glfwGetKey(window, GLFW_KEY_S), dt);
+// 	UpdateBinding(KEY_T, glfwGetKey(window, GLFW_KEY_T), dt);
+// 	UpdateBinding(KEY_U, glfwGetKey(window, GLFW_KEY_U), dt);
+// 	UpdateBinding(KEY_V, glfwGetKey(window, GLFW_KEY_V), dt);
+// 	UpdateBinding(KEY_W, glfwGetKey(window, GLFW_KEY_W), dt);
+// 	UpdateBinding(KEY_X, glfwGetKey(window, GLFW_KEY_X), dt);
+// 	UpdateBinding(KEY_Y, glfwGetKey(window, GLFW_KEY_Y), dt);
+// 	UpdateBinding(KEY_Z, glfwGetKey(window, GLFW_KEY_Z), dt);
+// 
+// 	UpdateBinding(KEY_SPACE, glfwGetKey(window, GLFW_KEY_SPACE), dt);
+// 	UpdateBinding(KEY_ESCAPE, glfwGetKey(window, GLFW_KEY_ESCAPE), dt);
+// 
+// 	CalculateWorldMousePos(window);
+// 
+// 	//Step scroll, hacky but whatever
+// 	bindings[MOUSE_SCROLL_UP].FireEvents(dt);
+// 	bindings[MOUSE_SCROLL_DOWN].FireEvents(dt);
+// 	bindings[MOUSE_SCROLL_DOWN].state = UP;
+// 	bindings[MOUSE_SCROLL_UP].state = UP;
 }
 
 InputState GetInputState(u32 key)

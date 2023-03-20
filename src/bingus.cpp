@@ -168,6 +168,9 @@ void RunGame()
 		}
 
 		if (updateEvent != nullptr) updateEvent(dt);
+
+		UpdateDebug();
+
 		BuildGUI();
 		ProcessGUIInput();
 

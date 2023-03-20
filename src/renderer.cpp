@@ -53,9 +53,9 @@ void InitializeRenderer()
 
 	//Initialize global render queue
 	globalRenderQueue.buffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
-	globalRenderQueue.spriteShader = Shader("ui_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
-	globalRenderQueue.textShader = Shader("ui_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
-	globalRenderQueue.spriteSheet = &defaultGuiSpritesheet;
+	globalRenderQueue.spriteShader = Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
+	globalRenderQueue.textShader = Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
+	globalRenderQueue.spriteSheet = &defaultGuiSpritesheet; //TODO: Change this?
 	globalRenderQueue.font = Fonts::arial;
 }
 
