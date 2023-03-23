@@ -71,9 +71,14 @@ if (${BINGUS_EXAMPLES})
 	target_link_libraries(example3_gui ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
-	#Example 4 - boids
-	add_executable(example4_boids "examples/boids.cpp")
-	target_link_libraries(example4_boids ${LIB_NAME})
+	#Example 4 - input
+	add_executable(example4_input "examples/input.cpp")
+	target_link_libraries(example4_input ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
+
+	#Example 5 - boids
+	add_executable(example5_boids "examples/boids.cpp")
+	target_link_libraries(example5_boids ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 endif()

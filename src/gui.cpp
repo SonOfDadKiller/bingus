@@ -61,16 +61,16 @@ void InitializeGUI()
 	canvas.vars.anchor = TOP_LEFT;
 
 	//TODO: Move input bindings out of here?
-	BindInputAction(MOUSE_LEFT, PRESS, [](float dt) {
+	globalInputListener.BindAction(MOUSE_LEFT, PRESS, []() {
 		guiMouseState = PRESS;
 		guiMousePressPosition = mousePosition;
 	});
 
-	BindInputAction(MOUSE_LEFT, HOLD, [](float dt) {
+	globalInputListener.BindAction(MOUSE_LEFT, HOLD, []() {
 		guiMouseState = HOLD;
 	});
 
-	BindInputAction(MOUSE_LEFT, RELEASE, [](float dt) {
+	globalInputListener.BindAction(MOUSE_LEFT, RELEASE, []() {
 		guiMouseState = RELEASE;
 	});
 

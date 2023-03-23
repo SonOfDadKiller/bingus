@@ -169,7 +169,7 @@ void RunGame()
 
 		if (updateEvent != nullptr) updateEvent(dt);
 
-		UpdateDebug();
+		//UpdateDebug();
 
 		BuildGUI();
 		ProcessGUIInput();

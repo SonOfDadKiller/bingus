@@ -1,5 +1,6 @@
 #include "bingus.h"
 #include <vector>
+#include <algorithm>
 #include "glm/ext/matrix_projection.hpp"
 
 InputListener globalInputListener;
@@ -10,90 +11,134 @@ vec3 mouseWorldDelta;
 vec2 mousePrevPosition;
 vec3 mousePrevWorldPosition;
 
-static std::vector<InputListener> listeners;
+static std::vector<InputListener*> listeners;
 static std::vector<InputEvent> eventBuffer;
+static std::vector<InputState> keyStates;
 
-void ScrollCallback(GLFWwindow* window, double x, double y)
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-	bindings[MOUSE_SCROLL_DOWN].state = y < 0 ? PRESS : UP;
-	bindings[MOUSE_SCROLL_UP].state = y > 0 ? PRESS : UP;
+	InputEvent event;
+
+	switch (action)
+	{
+		case GLFW_PRESS: event.state = PRESS; break;
+		case GLFW_RELEASE: event.state = RELEASE; break;
+	}
+
+	switch (button)
+	{
+		case GLFW_MOUSE_BUTTON_LEFT: event.key = MOUSE_LEFT; break;
+		case GLFW_MOUSE_BUTTON_RIGHT: event.key = MOUSE_RIGHT; break;
+	}
+
+	eventBuffer.push_back(event);
+}
+
+void MouseScrollCallback(GLFWwindow* window, double x, double y)
+{
+	InputEvent event;
+
+	event.key = y > 0 ? MOUSE_SCROLL_UP : MOUSE_SCROLL_DOWN;
+	event.state = PRESS;
+	eventBuffer.push_back(event);
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	InputEvent event;
+	
+	switch (action)
+	{
+		case GLFW_PRESS: event.state = PRESS; break;
+		case GLFW_RELEASE: event.state = RELEASE; break;
+	}
 
+	switch (key)
+	{
+		//TODO: Fill out rest of keyboard
+		case GLFW_KEY_A: event.key = KEY_A; break;
+		case GLFW_KEY_B: event.key = KEY_B; break;
+		case GLFW_KEY_C: event.key = KEY_C; break;
+		case GLFW_KEY_D: event.key = KEY_D; break;
+		case GLFW_KEY_E: event.key = KEY_E; break;
+		case GLFW_KEY_F: event.key = KEY_F; break;
+		case GLFW_KEY_G: event.key = KEY_G; break;
+		case GLFW_KEY_H: event.key = KEY_H; break;
+		case GLFW_KEY_I: event.key = KEY_I; break;
+		case GLFW_KEY_J: event.key = KEY_J; break;
+		case GLFW_KEY_K: event.key = KEY_K; break;
+		case GLFW_KEY_L: event.key = KEY_L; break;
+		case GLFW_KEY_M: event.key = KEY_M; break;
+		case GLFW_KEY_N: event.key = KEY_N; break;
+		case GLFW_KEY_O: event.key = KEY_O; break;
+		case GLFW_KEY_P: event.key = KEY_P; break;
+		case GLFW_KEY_Q: event.key = KEY_Q; break;
+		case GLFW_KEY_R: event.key = KEY_R; break;
+		case GLFW_KEY_S: event.key = KEY_S; break;
+		case GLFW_KEY_T: event.key = KEY_T; break;
+		case GLFW_KEY_U: event.key = KEY_U; break;
+		case GLFW_KEY_V: event.key = KEY_V; break;
+		case GLFW_KEY_W: event.key = KEY_W; break;
+		case GLFW_KEY_X: event.key = KEY_X; break;
+		case GLFW_KEY_Y: event.key = KEY_Y; break;
+		case GLFW_KEY_Z: event.key = KEY_Z; break;
+		case GLFW_KEY_SPACE: event.key = KEY_SPACE; break;
+		case GLFW_KEY_ESCAPE: event.key = KEY_ESCAPE; break;
+	}
+
+	eventBuffer.push_back(event);
 }
 
 void InitializeInput(GLFWwindow* window)
 {
-	//Set up mouse
+	//Set up cursor mode
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	glfwSetScrollCallback(window, ScrollCallback);
 
-	//Set up keyboard callbacks
+	//Set up input callbacks
+	glfwSetScrollCallback(window, MouseScrollCallback);
+	glfwSetMouseButtonCallback(window, MouseButtonCallback);
 	glfwSetKeyCallback(window, KeyCallback);
-}
 
-u32 BindInputAction(u32 key, InputState state, InputEvent fun)
-{
-	Action action;
-	action.fun = fun;
-	action.id = currentActionID++;
-	assert(bindings.size() != 0); //Forgot to initialize
-	bindings[key].AddAction(action, state);
-	return action.id;
-}
+	//Initialize key states
+	keyStates.reserve(KEY_END - 1);
 
-void UnbindInputAction(u32 key, InputState state, u32 id)
-{
-	std::vector<Action>* actions = bindings[key].GetActions(state);
-	assert(actions != nullptr);
-
-	auto it = actions->begin();
-	while (it != actions->end())
+	for (u32 key = 0; key != KEY_END; key++)
 	{
-		if (it->id == id)
-		{
-			break;
-		}
-
-		it++;
+		keyStates.push_back(UP);
 	}
 
-	assert(it != actions->end());
-	actions->erase(it);
+	//Initialize global listener
+	globalInputListener.blocking = false;
+	globalInputListener.priority = 0;
+	listeners.push_back(&globalInputListener);
 }
 
-void UpdateBinding(u32 key, u32 glfwState, float dt)
+bool CompareInputListeners(const InputListener* a, const InputListener* b)
 {
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
+	return a->priority < b->priority;
+}
 
-	Binding* binding = &bindings[key];
+void SortListeners()
+{
+	//Sort input list
+	sort(listeners.begin(), listeners.end(), CompareInputListeners);
+}
 
-	if (glfwState == GLFW_PRESS)
+
+void RegisterInputListener(InputListener* listener)
+{
+	listeners.push_back(listener);
+	SortListeners();
+}
+
+void UnregisterInputListener(InputListener* listener)
+{
+	auto it = std::find(listeners.begin(), listeners.end(), listener);
+	if (it != listeners.end())
 	{
-		switch (binding->state)
-		{
-			case PRESS: binding->state = HOLD; break;
-			case HOLD: binding->state = HOLD; break;
-			case RELEASE: binding->state = PRESS; break;
-			case UP: binding->state = PRESS; break;
-		}
+		listeners.erase(it);
+		SortListeners();
 	}
-	else if (glfwState == GLFW_RELEASE)
-	{
-		switch (binding->state)
-		{
-			case PRESS: binding->state = RELEASE; break;
-			case HOLD: binding->state = RELEASE; break;
-			case RELEASE: binding->state = UP; break;
-			case UP: binding->state = UP; break;
-		}
-	}
-
-	binding->FireEvents(dt);
 }
 
 void CalculateWorldMousePos(GLFWwindow* window)
@@ -108,7 +153,7 @@ void CalculateWorldMousePos(GLFWwindow* window)
 	mousePosition = vec2(x, GetWindowSize().y - y);
 	mouseDelta = mousePrevPosition - mousePosition;
 
-	// make cursor coordinates from -1 to +1
+	//Make cursor coordinates from -1 to +1
 	float pt_x = (mousePosition.x / GetWindowSize().x) * 2.f - 1.f;
 	float pt_y = (mousePosition.y / GetWindowSize().y) * 2.f - 1.f;
 
@@ -137,12 +182,21 @@ void InputListener::BindAction(u32 key, InputState state, InputCallback callback
 
 void InputListener::BindAction(u32 key, InputState state, bool blocking, InputCallback callback)
 {
-	bindings[{ key, state }] = { callback, blocking };
+	InputEvent event = { key, state };
+	InputBinding binding = { callback, blocking };
+
+	bindings[event] = binding;
 }
 
 void InputListener::UnbindAction(u32 key, InputState state)
 {
 	bindings.erase({ key, state });
+}
+
+void InputListener::SetPriority(i32 priority)
+{
+	this->priority = priority;
+	SortListeners();
 }
 
 void UpdateInput(GLFWwindow* window, float dt)
@@ -151,52 +205,48 @@ void UpdateInput(GLFWwindow* window, float dt)
 	ZoneScoped;
 #endif
 
-	for (auto it = )
+	CalculateWorldMousePos(window);
 
-	//TODO: Add rest of keyboard
-// 	UpdateBinding(MOUSE_LEFT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT), dt);
-// 	UpdateBinding(MOUSE_RIGHT, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT), dt);
-// 
-// 	UpdateBinding(KEY_A, glfwGetKey(window, GLFW_KEY_A), dt);
-// 	UpdateBinding(KEY_B, glfwGetKey(window, GLFW_KEY_B), dt);
-// 	UpdateBinding(KEY_C, glfwGetKey(window, GLFW_KEY_C), dt);
-// 	UpdateBinding(KEY_D, glfwGetKey(window, GLFW_KEY_D), dt);
-// 	UpdateBinding(KEY_E, glfwGetKey(window, GLFW_KEY_E), dt);
-// 	UpdateBinding(KEY_F, glfwGetKey(window, GLFW_KEY_F), dt);
-// 	UpdateBinding(KEY_G, glfwGetKey(window, GLFW_KEY_G), dt);
-// 	UpdateBinding(KEY_H, glfwGetKey(window, GLFW_KEY_H), dt);
-// 	UpdateBinding(KEY_I, glfwGetKey(window, GLFW_KEY_I), dt);
-// 	UpdateBinding(KEY_J, glfwGetKey(window, GLFW_KEY_J), dt);
-// 	UpdateBinding(KEY_K, glfwGetKey(window, GLFW_KEY_K), dt);
-// 	UpdateBinding(KEY_L, glfwGetKey(window, GLFW_KEY_L), dt);
-// 	UpdateBinding(KEY_M, glfwGetKey(window, GLFW_KEY_M), dt);
-// 	UpdateBinding(KEY_N, glfwGetKey(window, GLFW_KEY_N), dt);
-// 	UpdateBinding(KEY_O, glfwGetKey(window, GLFW_KEY_O), dt);
-// 	UpdateBinding(KEY_P, glfwGetKey(window, GLFW_KEY_P), dt);
-// 	UpdateBinding(KEY_Q, glfwGetKey(window, GLFW_KEY_Q), dt);
-// 	UpdateBinding(KEY_R, glfwGetKey(window, GLFW_KEY_R), dt);
-// 	UpdateBinding(KEY_S, glfwGetKey(window, GLFW_KEY_S), dt);
-// 	UpdateBinding(KEY_T, glfwGetKey(window, GLFW_KEY_T), dt);
-// 	UpdateBinding(KEY_U, glfwGetKey(window, GLFW_KEY_U), dt);
-// 	UpdateBinding(KEY_V, glfwGetKey(window, GLFW_KEY_V), dt);
-// 	UpdateBinding(KEY_W, glfwGetKey(window, GLFW_KEY_W), dt);
-// 	UpdateBinding(KEY_X, glfwGetKey(window, GLFW_KEY_X), dt);
-// 	UpdateBinding(KEY_Y, glfwGetKey(window, GLFW_KEY_Y), dt);
-// 	UpdateBinding(KEY_Z, glfwGetKey(window, GLFW_KEY_Z), dt);
-// 
-// 	UpdateBinding(KEY_SPACE, glfwGetKey(window, GLFW_KEY_SPACE), dt);
-// 	UpdateBinding(KEY_ESCAPE, glfwGetKey(window, GLFW_KEY_ESCAPE), dt);
-// 
-// 	CalculateWorldMousePos(window);
-// 
-// 	//Step scroll, hacky but whatever
-// 	bindings[MOUSE_SCROLL_UP].FireEvents(dt);
-// 	bindings[MOUSE_SCROLL_DOWN].FireEvents(dt);
-// 	bindings[MOUSE_SCROLL_DOWN].state = UP;
-// 	bindings[MOUSE_SCROLL_UP].state = UP;
+	//Process events in buffer
+	for (auto itEvent = eventBuffer.begin(); itEvent != eventBuffer.end(); itEvent++)
+	{
+		keyStates[itEvent->key] = itEvent->state;
+	}
+
+	//Clear that mother fucking buffer god damn
+	eventBuffer.clear();
+
+	for (u32 key = 0; key != KEY_END; key++)
+	{
+		//Send event to listeners
+		for (auto itListener = listeners.begin(); itListener != listeners.end(); itListener++)
+		{
+			InputEvent event = { key, keyStates[key] };
+			auto entry = (*itListener)->bindings.find(event);
+
+			if (entry != (*itListener)->bindings.end())
+			{
+				//Binding for this event exists, trigger callback
+				entry->second.callback();
+
+				//Block if either listener or binding is set to blocking
+				if (entry->second.blocking || (*itListener)->blocking) break;
+			}
+		}
+
+		//Update event
+		if (keyStates[key] == PRESS)
+		{
+			keyStates[key] = HOLD;
+		}
+		else if (keyStates[key] == RELEASE)
+		{
+			keyStates[key] = UP;
+		}
+	}
+
+	//Reset scroll state, as it should only be in either PRESS or UP state
+	keyStates[MOUSE_SCROLL_UP] = UP;
+	keyStates[MOUSE_SCROLL_DOWN] = UP;
 }
 
-InputState GetInputState(u32 key)
-{
-	return bindings[key].state;
-}

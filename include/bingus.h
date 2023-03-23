@@ -442,7 +442,7 @@ bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
 #define DEBUG_SCREEN 6
 
 void InitializeDebug();
-void UpdateDebug();
+//void UpdateDebug();
 
 struct DebugWidget
 {
@@ -552,7 +552,7 @@ struct TestEntity : Entity
 
 enum InputState
 {
-	PRESS, HOLD, RELEASE
+	PRESS, HOLD, RELEASE, UP
 };
 
 typedef std::function<void(void)> InputCallback;
@@ -562,14 +562,22 @@ struct InputEvent
 	u32 key;
 	InputState state;
 
-	bool operator==(const InputEvent& other)
+	bool operator==(const InputEvent& other) const
 	{
 		return key == other.key && state == other.state;
 	}
 
-	bool operator!= (const InputEvent& other)
+	bool operator!= (const InputEvent& other) const
 	{
 		return !(*this == other);
+	}
+};
+
+struct InputEventKeyHasher
+{
+	std::size_t operator()(const InputEvent& ie) const
+	{
+		return ((std::hash<u32>()(ie.key) ^ (std::hash<InputState>()(ie.state) << 1)));
 	}
 };
 
@@ -581,7 +589,7 @@ struct InputBinding
 
 struct InputListener
 {
-	std::unordered_map<InputEvent, InputBinding> bindings;
+	std::unordered_map<InputEvent, InputBinding, InputEventKeyHasher> bindings;
 	i32 priority;
 	bool blocking;
 
@@ -591,6 +599,7 @@ struct InputListener
 	void BindAction(u32 key, InputState state, InputCallback callback);
 	void BindAction(u32 key, InputState state, bool blocking, InputCallback callback);
 	void UnbindAction(u32 key, InputState state);
+	void SetPriority(i32 priority);
 };
 
 extern InputListener globalInputListener;
@@ -602,6 +611,8 @@ extern vec3 mouseWorldDelta;
 
 void InitializeInput(GLFWwindow* window);
 void UpdateInput(GLFWwindow* window, float dt);
+void RegisterInputListener(InputListener* listener);
+void UnregisterInputListener(InputListener* listener);
 
 //GUI
 extern SpriteSheet defaultGuiSpritesheet;
