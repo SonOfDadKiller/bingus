@@ -17,6 +17,8 @@ static std::vector<InputState> keyStates;
 
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
+	if (action == GLFW_REPEAT) return;
+
 	InputEvent event;
 
 	switch (action)
@@ -45,11 +47,14 @@ void MouseScrollCallback(GLFWwindow* window, double x, double y)
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	if (action == GLFW_REPEAT) return;
+
 	InputEvent event;
 	
 	switch (action)
 	{
 		case GLFW_PRESS: event.state = PRESS; break;
+		case GLFW_REPEAT: return;
 		case GLFW_RELEASE: event.state = RELEASE; break;
 	}
 
@@ -100,9 +105,9 @@ void InitializeInput(GLFWwindow* window)
 	glfwSetKeyCallback(window, KeyCallback);
 
 	//Initialize key states
-	keyStates.reserve(KEY_END - 1);
+	keyStates.reserve(KEY_LAST - 1);
 
-	for (u32 key = 0; key != KEY_END; key++)
+	for (u32 key = 0; key != KEY_LAST; key++)
 	{
 		keyStates.push_back(UP);
 	}
@@ -216,7 +221,7 @@ void UpdateInput(GLFWwindow* window, float dt)
 	//Clear that mother fucking buffer god damn
 	eventBuffer.clear();
 
-	for (u32 key = 0; key != KEY_END; key++)
+	for (u32 key = 0; key != KEY_LAST; key++)
 	{
 		//Send event to listeners
 		for (auto itListener = listeners.begin(); itListener != listeners.end(); itListener++)

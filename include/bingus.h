@@ -62,6 +62,8 @@ struct Edges
 extern float avgFrameTime;
 extern i32 framesPerSecond;
 
+//TODO: Rethink these getters/setters, should the vars just be accessible?
+float GetDeltaTime();
 float GetAvgFrameTime();
 u32 GetFPS();
 float GetTime();
@@ -548,7 +550,7 @@ struct TestEntity : Entity
 #define KEY_Z				29
 #define KEY_SPACE			30
 #define KEY_ESCAPE			31
-#define KEY_END				32
+#define KEY_LAST			32
 
 enum InputState
 {

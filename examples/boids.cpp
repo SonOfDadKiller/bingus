@@ -70,42 +70,42 @@ void Start()
 	SetCameraSize(7.f);
 
 	//Input Bindings
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
 	{
 		ExitGame();
 	});
 
-	BindInputAction(KEY_W, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_W, HOLD, []()
 	{
-		TranslateCamera(vec2(0, 3) * dt);
+		TranslateCamera(vec2(0, 3) * GetDeltaTime());
 	});
 
-	BindInputAction(KEY_A, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_A, HOLD, []()
 	{
-		TranslateCamera(vec2(-3, 0) * dt);
+		TranslateCamera(vec2(-3, 0) * GetDeltaTime());
 	});
 
-	BindInputAction(KEY_S, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_S, HOLD, []()
 	{
-		TranslateCamera(vec2(0, -3) * dt);
+		TranslateCamera(vec2(0, -3) * GetDeltaTime());
 	});
 
-	BindInputAction(KEY_D, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_D, HOLD, []()
 	{
-		TranslateCamera(vec2(3, 0) * dt);
+		TranslateCamera(vec2(3, 0) * GetDeltaTime());
 	});
 
-	BindInputAction(MOUSE_SCROLL_UP, PRESS, [](float dt)
+	globalInputListener.BindAction(MOUSE_SCROLL_UP, PRESS, []()
 	{
 		ZoomCamera(-0.2f);
 	});
 
-	BindInputAction(MOUSE_SCROLL_DOWN, PRESS, [](float dt)
+	globalInputListener.BindAction(MOUSE_SCROLL_DOWN, PRESS, []()
 	{
 		ZoomCamera(0.2f);
 	});
 
-	BindInputAction(KEY_R, PRESS, [](float dt)
+	globalInputListener.BindAction(KEY_R, PRESS, []()
 	{
 		Reset();
 	});

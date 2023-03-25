@@ -238,7 +238,6 @@ void GUIWidget::Draw()
 	break;
 	case SLIDER:
 	{
-
 		float sliderVal = (*vars.value - vars.min) / (vars.max - vars.min);
 		vec2 linePos = vars.pos + vec2((vars.size.x - 2.f) * sliderVal, 0.f);
 		vec2 lineSize = vec2(2.f, vars.size.y);

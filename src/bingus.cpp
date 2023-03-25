@@ -26,10 +26,16 @@ float CalcAverageTick(float newtick)
 }
 
 //Time management
-static float gameTime;
+static float dt = 0.f;
+static float gameTime = 0.f;
 static float stepAccumulator = 0.f;
 static float timestep = 1.f / 60.f;
-static float timestepAlpha;
+static float timestepAlpha = 0.f;
+
+float GetDeltaTime()
+{
+	return dt;
+}
 
 float GetTime()
 {
@@ -138,7 +144,6 @@ void RunGame()
 {
 	if (startEvent != nullptr) startEvent();
 
-	float dt = 0.f;
 	float prevTime = 0.f;
 
 	//Game loop

@@ -15,7 +15,7 @@ int main()
 	SetGameStartFunction(Start);
 	SetGameUpdateFunction(Update);
 	SetGameDrawFunction(Draw);
-	
+
 	RunGame();
 
 	return 0;
