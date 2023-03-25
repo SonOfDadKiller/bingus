@@ -17,20 +17,20 @@ static std::vector<InputState> keyStates;
 
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-	if (action == GLFW_REPEAT) return;
-
 	InputEvent event;
 
 	switch (action)
 	{
 		case GLFW_PRESS: event.state = PRESS; break;
 		case GLFW_RELEASE: event.state = RELEASE; break;
+		default: return;
 	}
 
 	switch (button)
 	{
 		case GLFW_MOUSE_BUTTON_LEFT: event.key = MOUSE_LEFT; break;
 		case GLFW_MOUSE_BUTTON_RIGHT: event.key = MOUSE_RIGHT; break;
+		default: return;
 	}
 
 	eventBuffer.push_back(event);
@@ -47,15 +47,13 @@ void MouseScrollCallback(GLFWwindow* window, double x, double y)
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (action == GLFW_REPEAT) return;
-
 	InputEvent event;
 	
 	switch (action)
 	{
 		case GLFW_PRESS: event.state = PRESS; break;
-		case GLFW_REPEAT: return;
 		case GLFW_RELEASE: event.state = RELEASE; break;
+		default: return;
 	}
 
 	switch (key)
@@ -89,6 +87,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_Z: event.key = KEY_Z; break;
 		case GLFW_KEY_SPACE: event.key = KEY_SPACE; break;
 		case GLFW_KEY_ESCAPE: event.key = KEY_ESCAPE; break;
+		default: return;
 	}
 
 	eventBuffer.push_back(event);
