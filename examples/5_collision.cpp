@@ -14,7 +14,7 @@ Circle circle1;
 Circle circle2;
 Segment segment;
 
-enum TestMode { AABBToAABB, CircleToCircle, CircleToAABB, SegmentToAABB, SegmentToCircle };
+enum TestMode { AABBToAABB, CircleToCircle, CircleToAABB, SegmentToAABB, SegmentToCircle, CircleSweepToAABB };
 TestMode testMode;
 
 int main()
@@ -124,6 +124,7 @@ void Update(float dt)
 			ModeButton("Circle to AABB", CircleToAABB);
 			ModeButton("Segment to AABB", SegmentToAABB);
 			ModeButton("Segment to Circle", SegmentToCircle);
+			ModeButton("Circle Sweep to AABB", CircleSweepToAABB);
 		EndNode();
 	EndNode();
 
@@ -135,37 +136,49 @@ void Update(float dt)
 
 void Draw()
 {
-
-	switch (testMode)
-	{
-	case AABBToAABB:
+	if (testMode == AABBToAABB)
 	{
 		bool intersects = TestAABBAABB(aabb1, aabb2);
 		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
 		DrawDebugAABB(DEBUG_WORLD, aabb1, color, false);
 		DrawDebugAABB(DEBUG_WORLD, aabb2, color, false);
-	} break;
-	case CircleToCircle:
+	}
+	else if (testMode == CircleToCircle)
 	{
 		bool intersects = TestCircleCircle(circle1, circle2);
 		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
 		DrawDebugCircle(DEBUG_WORLD, circle1, 64, color, false);
 		DrawDebugCircle(DEBUG_WORLD, circle2, 64, color, false);
-	} break;
-	case CircleToAABB:
+	}
+	else if (testMode == CircleToAABB)
 	{
 		bool intersects = TestCircleAABB(circle1, aabb1);
 		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
 		DrawDebugCircle(DEBUG_WORLD, circle1, 64, color, false);
 		DrawDebugAABB(DEBUG_WORLD, aabb1, color, false);
-	} break;
-	case SegmentToCircle:
+	}
+	else if (testMode == SegmentToAABB)
+	{
+		float t;
+		vec2 p;
+		bool intersects = IntersectSegmentAABB(segment, aabb1, p, t);
+		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
+		DrawDebugLine(DEBUG_WORLD, segment.start, segment.end, 1.f, color);
+		DrawDebugAABB(DEBUG_WORLD, aabb1, color, false);
+
+		if (intersects)
+		{
+			DrawDebugCircle(DEBUG_WORLD, Circle(p, 0.02f), 16, vec4(1), false);
+			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.8f, vec4(1), "t = " + std::to_string(t));
+		}
+	}
+	else if (testMode == SegmentToCircle)
 	{
 		float t;
 		vec2 p;
 		bool intersects = IntersectSegmentCircle(segment, circle1, p, t);
 		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
-		DrawDebugLine(DEBUG_WORLD, vec3(segment.start, 0.f), vec3(segment.end, 0.f), 1.f, color);
+		DrawDebugLine(DEBUG_WORLD, segment.start, segment.end, 1.f, color);
 		DrawDebugCircle(DEBUG_WORLD, circle1, 64, color, false);
 
 		if (intersects)
@@ -173,15 +186,29 @@ void Draw()
 			DrawDebugCircle(DEBUG_WORLD, Circle(p, 0.02f), 16, vec4(1), false);
 			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.8f, vec4(1), "t = " + std::to_string(t));
 		}
-	} break;
-
 	}
+	else if (testMode == CircleSweepToAABB)
+	{
+		float t;
+		vec2 velocity = circle2.position - circle1.position;
+		vec2 direction = glm::normalize(velocity);
+		vec2 p = circle2.position;
+		bool intersects = SweepCircleAABB(circle1, velocity, aabb1, t);
+		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
+		DrawDebugCircle(DEBUG_WORLD, circle1, 64, color, false);
+		DrawDebugCircle(DEBUG_WORLD, Circle(circle2.position, circle1.radius), 64, vec4(1), false);
+		DrawDebugAABB(DEBUG_WORLD, aabb1, color, false);
 
-// 	vec3 lineStart = vec3(sin(GetTime()), cos(GetTime()), 0) * 0.5f;
-// 	vec3 lineEnd = vec3(sin(GetTime() + 3.1415), cos(GetTime() + 3.1415), 0) * 0.5f;
-// 	DrawDebugLine(DEBUG_WORLD, lineStart, lineEnd, 1.f, vec4(1.f), 0.5f);
-// 
-// 	DrawDebugAABB(DEBUG_WORLD, AABB(vec2(-0.3f), vec2(0.3f)), vec4(1.f), false);
-// 
-// 	DrawDebugCircle(DEBUG_WORLD, Circle(vec3(0), 0.7f), 128, vec4(1), false);
+		if (intersects)
+		{
+			p = circle1.position + direction * t;
+			DrawDebugCircle(DEBUG_WORLD, Circle(p, circle1.radius), 64, color, false);
+			DrawDebugLine(DEBUG_WORLD, circle1.position, p, 1.f, color);
+			DrawDebugLine(DEBUG_WORLD, p, circle2.position, 1.f, vec4(1));
+		}
+		else
+		{
+			DrawDebugLine(DEBUG_WORLD, circle1.position, circle2.position, 1.f, color);
+		}
+	}
 }

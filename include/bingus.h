@@ -725,10 +725,11 @@ bool TestAABBAABB(const AABB& a, const AABB& b);
 bool TestCircleCircle(const Circle& a, const Circle& b);
 float SqDistPointToAABB(vec2 point, AABB box);
 bool TestCircleAABB(const Circle& circle, const AABB& box);
-bool IntersectRayAABB(const Ray& ray, const AABB& box, float& tmin, vec2& point);
+bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t);
+bool IntersectSegmentAABB(const Segment& segment, const AABB& box, vec2& p, float& t);
 bool IntersectRayCircle(const Ray& ray, const Circle& circle, vec2& p, float& t);
 bool IntersectSegmentCircle(const Segment& segment, const Circle& circle, vec2& p, float& t);
-bool MovingCircleToAABB(const Circle& circle, vec2 velocity, const AABB& box, float& t);
+bool SweepCircleAABB(const Circle& circle, vec2 velocity, const AABB& box, float& t);
 
 //Debug
 #define DEBUG_LINE 1
@@ -745,6 +746,7 @@ void InitializeDebug();
 
 void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer = 0.f);
 void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer = 0.f);
+void DrawDebugLine(u32 space, vec2 from, vec2 to, float thickness, vec4 color, float timer = 0.f);
 void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugCircle(u32 space, const Circle& circle, u32 subdiv, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer = 0.f);

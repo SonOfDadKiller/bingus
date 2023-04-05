@@ -35,9 +35,9 @@ bool TestCircleAABB(const Circle& circle, const AABB& box)
 	return sqDist <= glm::pow(circle.radius, 2);
 }
 
-bool IntersectRayAABB(const Ray& ray, const AABB& box, float& tmin, vec2& point)
+bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t)
 {
-	tmin = 0.f;
+	float tmin = t;
 	float tmax = std::numeric_limits<float>::max();
 
 	//X axis slab
@@ -83,8 +83,20 @@ bool IntersectRayAABB(const Ray& ray, const AABB& box, float& tmin, vec2& point)
 	}
 
 	//Ray intersects both slabs. Return intersection point and t value
-	point = ray.start + ray.direction * tmin;
+	p = ray.start + ray.direction * tmin;
+	t = tmin;
 	return true;
+}
+
+bool IntersectSegmentAABB(const Segment& segment, const AABB& box, vec2& p, float& t)
+{
+	float m = glm::length(segment.end - segment.start);
+	Ray r = Ray(segment.start, (segment.end - segment.start) / m);
+	if (IntersectRayAABB(r, box, p, t))
+	{
+		return t <= m;
+	}
+	return false;
 }
 
 bool IntersectRayCircle(const Ray& ray, const Circle& circle, vec2& p, float& t)
@@ -128,11 +140,11 @@ vec2 Corner(const AABB& box, int n)
 	assert(n >= 0 && n <= 3);
 	if (n == 0) return box.min;
 	if (n == 1) return vec2(box.max.x, box.min.y);
-	if (n == 2) return box.max;
-	if (n == 3) return vec2(box.min.x, box.max.y);
+	if (n == 2) return vec2(box.min.x, box.max.y);
+	if (n == 3) return box.max;
 }
 
-bool MovingCircleToAABB(const Circle& circle, vec2 velocity, const AABB& box, float& t)
+bool SweepCircleAABB(const Circle& circle, vec2 velocity, const AABB& box, float& t)
 {
 	//Compute a box e, which is our AABB expanded by the circle radius
 	AABB e = box;
@@ -142,8 +154,8 @@ bool MovingCircleToAABB(const Circle& circle, vec2 velocity, const AABB& box, fl
 	//If the ray defined by the circle's movement does not collide with the expanded box e, there can be no collision.
 	//If it does collide, get p and t
 	vec2 p;
-	Ray r = Ray(circle.position, velocity); //NOTE: Does this need to be normalized?
-	if (!IntersectRayAABB(r, e, t, p) || t > 1.f) return false;
+	Ray r = Ray(circle.position, glm::normalize(velocity)); //NOTE: Does this need to be normalized?
+	if (!IntersectRayAABB(r, e, p, t) || t > glm::length(velocity)) return false;
 
 	//Compute whether p lies in an edge region or vertex region of our AABB
 	int u = 0;
@@ -159,12 +171,11 @@ bool MovingCircleToAABB(const Circle& circle, vec2 velocity, const AABB& box, fl
 	//If both bits are set (m = 3) then p is in a vertex region
 	if (m == 3)
 	{
-		//Must now intersect segment [c, c+d] against the capsules of the three edges
-		//meeting at the vertex and return the best time, if one or more hit
-		float tmin = std::numeric_limits<float>::min();
-
+		//return test against the circle at 
+		Segment segment = Segment(circle.position, circle.position + velocity);
+		return IntersectSegmentCircle(segment, Circle(Corner(box, v), circle.radius), p, t);
 	}
 
-
-	return false;
+	//p is in an edge region, so we simply return as p and t are correct as calculated by the ray intersection
+	return true;
 }

@@ -93,6 +93,16 @@ void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, f
 	lines.push_back(d_line);
 }
 
+void DrawDebugLine(u32 space, vec2 from, vec2 to, float thickness, vec4 color, float timer)
+{
+	DebugLine d_line;
+	d_line.start = vec3(from, 0);
+	d_line.end = vec3(to, 0);
+	d_line.color = color;
+	d_line.timer = timer;
+	lines.push_back(d_line);
+}
+
 void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer)
 {
 	DebugAABB d_aabb;
