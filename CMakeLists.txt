@@ -17,6 +17,7 @@ SET(BINGUS_SOURCE
 	"src/gui.cpp"
 	"src/entity.cpp"
 	"src/debug.cpp"
+	"src/collision.cpp"
 )
 
 SET(BINGUS_HEADERS
@@ -48,37 +49,42 @@ target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 #Examples
 if (${BINGUS_EXAMPLES})
 	
-	#Example 0 - hello_window
-	add_executable(example0_hello_window "examples/hello_window.cpp")
-	target_link_libraries(example0_hello_window ${LIB_NAME})
+	#Example 0 - hello
+	add_executable(example_0_hello "examples/0_hello.cpp")
+	target_link_libraries(example_0_hello ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
-	# Set EXAMPLE1 to be the default startup project in visual studio
-	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT example0_hello_window )
+	# Set 'example_0_hello' to be the default startup project in visual studio
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT example_0_hello)
 
 	#Example 1 - sprites
-	add_executable(example1_sprites "examples/sprites.cpp")
-	target_link_libraries(example1_sprites ${LIB_NAME})
+	add_executable(example_1_sprites "examples/1_sprites.cpp")
+	target_link_libraries(example_1_sprites ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	#Example 2 - text
-	add_executable(example2_text "examples/text.cpp")
-	target_link_libraries(example2_text ${LIB_NAME})
+	add_executable(example_2_text "examples/2_text.cpp")
+	target_link_libraries(example_2_text ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	#Example 3 - gui
-	add_executable(example3_gui "examples/gui.cpp")
-	target_link_libraries(example3_gui ${LIB_NAME})
+	add_executable(example_3_gui "examples/3_gui.cpp")
+	target_link_libraries(example_3_gui ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 	#Example 4 - input
-	add_executable(example4_input "examples/input.cpp")
-	target_link_libraries(example4_input ${LIB_NAME})
+	add_executable(example_4_input "examples/4_input.cpp")
+	target_link_libraries(example_4_input ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
-	#Example 5 - boids
-	add_executable(example5_boids "examples/boids.cpp")
-	target_link_libraries(example5_boids ${LIB_NAME})
+	#Example 5 - collision
+	add_executable(example_5_collision "examples/5_collision.cpp")
+	target_link_libraries(example_5_collision ${LIB_NAME})
+	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
+
+	#Example 6 - boids
+	add_executable(example_6_boids "examples/6_boids.cpp")
+	target_link_libraries(example_6_boids ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
 
 endif()

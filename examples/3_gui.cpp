@@ -23,7 +23,7 @@ int main()
 
 void Start()
 {
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
 	{
 		ExitGame();
 	});

@@ -6,7 +6,7 @@ void Draw();
 
 int main()
 {
-	SetupWindow(1280, 720, "Hello Window");
+	SetupWindow(1280, 720, "Hello Bingus!");
 	BingusInit();
 
 	SetGameStartFunction(Start);
@@ -20,7 +20,8 @@ int main()
 
 void Start()
 {
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt) {
+	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []() 
+	{
 		ExitGame();
 	});
 }
@@ -36,5 +37,7 @@ void Update(float dt)
 void Draw()
 {
 	SetClearColor(vec4(0.5f + cos(GetTime()) * 0.2f, 0.5f, 0.5f + sin(GetTime()) * 0.2f, 1.f));
-	DrawDebugText(DEBUG_WORLD, vec3(0), 0.3f, vec4(1, 1, 1, 1), "Hello World!");
+	DrawDebugText(DEBUG_WORLD, vec3(0), 0.01f, vec4(1, 1, 1, 1), "Hello World!");
+
+	
 }

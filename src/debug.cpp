@@ -6,7 +6,46 @@ static SpriteSequence* spriteSequence;
 
 static TextBatch textBatch;
 
-static std::vector<DebugWidget*> widgets;
+static RenderBatch lineBatch;
+static RenderBatch polyBatch;
+
+struct DebugLine
+{
+	vec4 color;
+	vec3 start, end;
+	float timer;
+};
+
+struct DebugAABB
+{
+	vec4 color;
+	AABB aabb;
+	float timer;
+	bool fill;
+};
+
+struct DebugCircle
+{
+	vec4 color;
+	Circle circle;
+	u32 pointCount;
+	float timer;
+	bool fill;
+};
+
+struct DebugText
+{
+	vec4 color;
+	vec3 position;
+	std::string data;
+	float size;
+	float timer;
+};
+
+std::vector<DebugLine> lines;
+std::vector<DebugAABB> aabbs;
+std::vector<DebugCircle> circles;
+std::vector<DebugText> texts;
 
 //TODO: Implement space var
 void InitializeDebug()
@@ -21,93 +60,129 @@ void InitializeDebug()
 		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
 		&spriteSheet);
 
-	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }), 
-		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX), 
+	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
+		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
 		Fonts::arial);
+
+	Shader shapeShader = Shader("world_shape.vert", "shape.frag");
+
+	lineBatch.shader = shapeShader;
+	lineBatch.buffer = VertBuffer({VERTEX_POS, VERTEX_COLOR});
+	lineBatch.drawMode = GL_LINES;
+
+	polyBatch.shader = shapeShader;
+	polyBatch.buffer = VertBuffer({ VERTEX_POS, VERTEX_COLOR });
+	polyBatch.drawMode = GL_TRIANGLES;
+
+	glLineWidth(3.f);
+	glEnable(GL_LINE_SMOOTH);
 }
 
 void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
 {
-	widgets.push_back(new DebugIcon(space, icon, position, size, color, timer));
+	
 }
 
 void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer)
 {
-	widgets.push_back(new DebugLine(space, from, to, thickness, color, timer));
+	DebugLine d_line;
+	d_line.start = from;
+	d_line.end = to;
+	d_line.color = color;
+	d_line.timer = timer;
+	lines.push_back(d_line);
+}
+
+void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer)
+{
+	DebugAABB d_aabb;
+	d_aabb.aabb = aabb;
+	d_aabb.color = color;
+	d_aabb.fill = fill;
+	d_aabb.timer = timer;
+	aabbs.push_back(d_aabb);
+}
+
+void DrawDebugCircle(u32 space, const Circle& circle, u32 pointCount, vec4 color, bool fill, float timer)
+{
+	DebugCircle d_circle;
+	d_circle.circle = circle;
+	d_circle.pointCount = pointCount;
+	d_circle.color = color;
+	d_circle.fill = fill;
+	d_circle.timer = timer;
+	circles.push_back(d_circle);
 }
 
 void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer)
 {
-	widgets.push_back(new DebugText(space, position, size, color, data, timer));
+	DebugText text;
+	text.position = position;
+	text.size = size;
+	text.color = color;
+	text.data = data;
+	text.timer = timer;
+	texts.push_back(text);
 }
 
-DebugIcon::DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
+void PushLineToBatch(vec3 start, vec3 end, vec4 color)
 {
-	this->space = space;
-	this->icon = icon;
-	this->position = position;
-	this->size = size;
-	this->color = color;
-	this->timer = timer;
-}
-
-void DebugIcon::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	if (PointIntersectsCamera(vec2(position.x, position.y), size))
+	vec3 pos[] = { start, end };
+	for (int i = 0; i < 2; i++)
 	{
-		spriteBatch->PushSprite(Sprite(position, vec2(size), CENTER, 0.f, color, spriteSequence, icon));
+		lineBatch.vertexData.push_back(pos[i].x);
+		lineBatch.vertexData.push_back(pos[i].y);
+		lineBatch.vertexData.push_back(pos[i].z);
+
+		lineBatch.vertexData.push_back(color.r);
+		lineBatch.vertexData.push_back(color.g);
+		lineBatch.vertexData.push_back(color.b);
+		lineBatch.vertexData.push_back(color.a);
+
+		lineBatch.indices.push_back(lineBatch.vertexCount + i);
+	}
+
+	lineBatch.vertexCount += 2;
+	lineBatch.bufferDirty = true;
+}
+
+void PushTriToBatch(vec3 a, vec3 b, vec3 c, vec4 color)
+{
+
+}
+
+void PushAABBToBatch(AABB box, vec4 color, bool fill)
+{
+	if (fill)
+	{
+
+	}
+	else
+	{
+		PushLineToBatch(vec3(box.min, 0.f),				 vec3(box.max.x, box.min.y, 0.f), color);
+		PushLineToBatch(vec3(box.max.x, box.min.y, 0.f), vec3(box.max, 0.f), color);
+		PushLineToBatch(vec3(box.max, 0.f),				 vec3(box.min.x, box.max.y, 0.f), color);
+		PushLineToBatch(vec3(box.min.x, box.max.y, 0.f), vec3(box.min, 0.f), color);
 	}
 }
 
-DebugLine::DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer)
+void PushCircleToBatch(Circle circle, vec4 color, u32 pointCount, bool fill)
 {
-	this->space = space;
-	this->from = from;
-	this->to = to;
-	this->thickness = thickness;
-	this->color = color;
-	this->timer = timer;
-}
-
-void DebugLine::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	//WARNING: Bad hack - need to implement line-rect intersection test
-	if (PointIntersectsCamera(vec2(from.x, from.y), 2.f) && PointIntersectsCamera(vec2(to.x, to.y), 2.f))
+	if (fill)
 	{
-		vec3 diff = to - from;
-		Sprite sprite = Sprite(from, vec2(glm::length(diff), thickness), CENTER_LEFT, glm::degrees(atan2(diff.y, diff.x)), color, spriteSequence, 0);
-		spriteBatch->PushSprite(sprite);
+
 	}
-}
-
-DebugText::DebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer)
-{
-	this->space = space;
-	this->position = position;
-	this->size = size;
-	this->color = color;
-	this->data = data;
-	this->timer = timer;
-}
-
-void DebugText::PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch)
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	if (PointIntersectsCamera(vec2(position.x, position.y), size))
+	else
 	{
-		vec3 extents = vec3(10);
-		textBatch->PushText(Text(data, position - extents / 2.f, vec2(extents), vec2(1.f), CENTER, size * 10.f, color, Fonts::arial));
+		vec3 lastPos = vec3(circle.position, 0) + vec3(0, circle.radius, 0); //sin(0), cos(0)
+		for (int i = 0; i < pointCount; i++)
+		{
+			float c = (float)(i + 1) / pointCount;
+			c = 3.1415926f * c * 2.f;
+			vec3 pos = vec3(circle.position, 0) + vec3(sin(c) * circle.radius, cos(c) * circle.radius, 0.f);
+			PushLineToBatch(lastPos, pos, color);
+			lastPos = pos;
+		}
 	}
 }
 
@@ -117,26 +192,61 @@ void DrawDebug(float dt)
 	ZoneScoped;
 #endif
 
-	spriteBatch.Clear();
+	lineBatch.Clear();
+	polyBatch.Clear();
 	textBatch.Clear();
 
-	size_t i = 0;
-	while (i != widgets.size())
+	//Process lines
+	auto line_it = lines.begin();
+	while (line_it != lines.end())
 	{
-		widgets[i]->timer -= dt;
-		widgets[i]->PushToBatch(&spriteBatch, &textBatch);
+		PushLineToBatch(line_it->start, line_it->end, line_it->color);
 
-		if (widgets[i]->timer <= 0.f)
-		{
-			delete widgets[i];
-			widgets.erase(widgets.begin() + i);
-		}
-		else
-		{
-			i++;
-		}
+		//Update timer, remove if needed
+		line_it->timer -= dt;
+		if (line_it->timer <= 0) line_it = lines.erase(line_it);
+		else line_it++;
 	}
 
-	spriteBatch.Draw();
+	//Process aabbs
+	auto aabb_it = aabbs.begin();
+	while (aabb_it != aabbs.end())
+	{
+		PushAABBToBatch(aabb_it->aabb, aabb_it->color, aabb_it->fill);
+
+		//Update timer, remove if needed
+		aabb_it->timer -= dt;
+		if (aabb_it->timer <= 0) aabb_it = aabbs.erase(aabb_it);
+		else aabb_it++;
+	}
+
+	//Process circles
+	auto circle_it = circles.begin();
+	while (circle_it != circles.end())
+	{
+		PushCircleToBatch(circle_it->circle, circle_it->color, circle_it->pointCount, circle_it->fill);
+
+		//Update timer, remove if needed
+		circle_it->timer -= dt;
+		if (circle_it->timer <= 0) circle_it = circles.erase(circle_it);
+		else circle_it++;
+	}
+
+	//Process text
+	auto texts_it = texts.begin();
+	while (texts_it != texts.end())
+	{
+		//Add text
+		textBatch.PushText(Text(texts_it->data, texts_it->position - vec3(0.25, 0.25, 0), vec2(0.5), vec2(1), CENTER, texts_it->size, texts_it->color, Fonts::arial));
+
+		//Update timer, remove if needed
+		texts_it->timer -= dt;
+		if (texts_it->timer <= 0) texts_it = texts.erase(texts_it);
+		else texts_it++;
+	}
+
+	//Draw text over lines over polys
+	polyBatch.Draw();
+	lineBatch.Draw();
 	textBatch.Draw();
 }

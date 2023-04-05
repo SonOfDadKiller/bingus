@@ -328,6 +328,7 @@ struct RenderBatch
 
 	std::vector<float> vertexData;
 	std::vector<u32> indices;
+	u32 drawMode = GL_TRIANGLES;
 
 	size_t vertexCount = 0;
 	size_t vertexCapacity = 0;
@@ -432,68 +433,6 @@ vec2 GetCameraPosition();
 float GetCameraSize();
 
 bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
-
-//Debug
-#define DEBUG_TRIANGLE 1
-#define DEBUG_DIAMOND 2
-#define DEBUG_PENTAGON 3
-#define DEBUG_HEXAGON 4
-#define DEBUG_CIRCLE 5
-
-#define DEBUG_WORLD 5
-#define DEBUG_SCREEN 6
-
-void InitializeDebug();
-//void UpdateDebug();
-
-struct DebugWidget
-{
-	float timer;
-
-	virtual ~DebugWidget() { };
-	virtual void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) = 0;
-};
-
-struct DebugIcon : DebugWidget
-{
-	u32 space;
-	u32 icon;
-	vec3 position;
-	float size;
-	vec4 color;
-
-	DebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer);
-	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
-};
-
-struct DebugLine : DebugWidget
-{
-	u32 space;
-	vec3 from;
-	vec3 to;
-	float thickness;
-	vec4 color;
-
-	DebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer);
-	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
-};
-
-struct DebugText : DebugWidget
-{
-	u32 space;
-	vec3 position;
-	float size;
-	vec4 color;
-	std::string data;
-
-	DebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer);
-	void PushToBatch(SpriteBatch* spriteBatch, TextBatch* textBatch) override;
-};
-
-void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer = 0.f);
-void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer = 0.f);
-void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer = 0.f);
-void DrawDebug(float dt);
 
 //Entity
 struct Entity
@@ -724,3 +663,89 @@ namespace gui
 	extern GUIWidgetVars vars;
 	GUIWidget& GetWidget(u32 id);
 }
+
+//Collision
+struct Circle
+{
+	vec2 position;
+	float radius;
+	Circle() : position(vec2(0)), radius(0.f) { }
+	Circle(vec2 position, float radius)
+	{
+		this->position = position;
+		this->radius = radius;
+	}
+};
+
+struct AABB
+{
+	vec2 min, max;
+	AABB() : min(vec2(0)), max(vec2(0)) { }
+	AABB(vec2 min, vec2 max)
+	{
+		this->min = min;
+		this->max = max;
+	}
+};
+
+struct Line
+{
+	vec2 a, b;
+	Line() : a(vec2(0)), b(vec2(1, 0)) { }
+	Line(vec2 a, vec2 b)
+	{
+		this->a = a;
+		this->b = b;
+	}
+};
+
+struct Ray
+{
+	vec2 start, direction;
+	Ray() : start(vec2(0)), direction(vec2(1, 0)) { }
+	Ray(vec2 start, vec2 direction)
+	{
+		this->start = start;
+		this->direction = direction;
+	}
+};
+
+struct Segment
+{
+	vec2 start, end;
+	Segment() : start(vec2(0)), end(vec2(1, 0)) { }
+	Segment(vec2 start, vec2 end)
+	{
+		this->start = start;
+		this->end = end;
+	}
+};
+
+bool TestAABBAABB(const AABB& a, const AABB& b);
+bool TestCircleCircle(const Circle& a, const Circle& b);
+float SqDistPointToAABB(vec2 point, AABB box);
+bool TestCircleAABB(const Circle& circle, const AABB& box);
+bool IntersectRayAABB(const Ray& ray, const AABB& box, float& tmin, vec2& point);
+bool IntersectRayCircle(const Ray& ray, const Circle& circle, vec2& p, float& t);
+bool IntersectSegmentCircle(const Segment& segment, const Circle& circle, vec2& p, float& t);
+bool MovingCircleToAABB(const Circle& circle, vec2 velocity, const AABB& box, float& t);
+
+//Debug
+#define DEBUG_LINE 1
+#define DEBUG_DIAMOND 2
+#define DEBUG_PENTAGON 3
+#define DEBUG_HEXAGON 4
+#define DEBUG_CIRCLE 5
+
+#define DEBUG_WORLD 5
+#define DEBUG_SCREEN 6
+
+void InitializeDebug();
+//void UpdateDebug();
+
+void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer = 0.f);
+void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer = 0.f);
+void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer = 0.f);
+void DrawDebugCircle(u32 space, const Circle& circle, u32 subdiv, vec4 color, bool fill, float timer = 0.f);
+void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer = 0.f);
+void DrawDebug(float dt);

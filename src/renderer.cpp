@@ -279,7 +279,7 @@ void RenderBatch::Draw()
 		shader.SetUniformInt(SHADER_MAIN_TEX, 0);
 	}
 
-	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
+	glDrawElements(drawMode, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
 }
 
 SpriteBatch::SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet)
@@ -439,6 +439,8 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
+
+	bufferDirty = true;
 
 	//Get frame early, so we can use the 9 slice data
 	SpriteSequence* sequence = nullptr;
