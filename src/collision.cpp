@@ -37,49 +37,53 @@ bool TestCircleAABB(const Circle& circle, const AABB& box)
 
 bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t)
 {
-	float tmin = t;
+// 	vec2 inverseDirection = -ray.direction;
+// 	float tx1 = (box.min.x - ray.start.x) * inverseDirection.x;
+// 	float tx2 = (box.max.x - ray.start.x) * inverseDirection.x;
+// 
+// 	float tmin = glm::min(tx1, tx2);
+// 	float tmax = glm::max(tx1, tx2);
+// 
+// 	float ty1 = (box.min.y - ray.start.y) * inverseDirection.y;
+// 	float ty2 = (box.max.y - ray.start.y) * inverseDirection.y;
+// 
+// 	tmin = glm::max(tmin, glm::min(ty1, ty2));
+// 	tmax = glm::min(tmax, glm::max(ty1, ty2));
+// 
+// 	t = tmax;
+// 	p = ray.start + ray.direction * t;
+// 	return tmax >= tmin && tmax >= 0;
+
+
+	float tmin = 0.f;
 	float tmax = std::numeric_limits<float>::max();
 
-	//X axis slab
-	if (glm::abs(ray.direction.x) < std::numeric_limits<float>::epsilon())
-	{
-		//Ray is parallel to the slab. If the origin is not within it, there is no collision
-		if (ray.start.x < box.min.x || ray.start.x > box.max.x) return false;
-	}
-	else
-	{
-		//Compute intersection t value of ray with near and far plane of slab
-		float ood = 1.f / ray.direction.x;
-		float t1 = (box.min.x - ray.start.x) * ood;
-		float t2 = (box.max.x - ray.start.x) * ood;
-		//Make t1 be intersection with near plane, t2 with far plane
-		if (t1 > t2) std::swap(t1, t1);
-		//Compute intersection of slab intersection intervals
-		if (t1 > tmin) tmin = t1;
-		if (t2 > tmax) tmax = t2;
-		//No collision if slab intersection becomes empty
-		if (tmin > tmax) return false;
-	}
+	float s[] = { ray.start.x, ray.start.y };
+	float d[] = { ray.direction.x, ray.direction.y };
+	float bMin[] = { box.min.x, box.min.y };
+	float bMax[] = { box.max.x, box.max.y };
 
-	//Y axis slab
-	if (glm::abs(ray.direction.y) < std::numeric_limits<float>::epsilon())
+	for (int i = 0; i < 2; i++)
 	{
-		//Ray is parallel to the slab. If the origin is not within it, there is no collision
-		if (ray.start.y < box.min.y || ray.start.y > box.max.y) return false;
-	}
-	else
-	{
-		//Compute intersection t value of ray with near and far plane of slab
-		float ood = 1.f / ray.direction.y;
-		float t1 = (box.min.y - ray.start.y) * ood;
-		float t2 = (box.max.y - ray.start.y) * ood;
-		//Make t1 be intersection with near plane, t2 with far plane
-		if (t1 > t2) std::swap(t1, t1);
-		//Compute intersection of slab intersection intervals
-		if (t1 > tmin) tmin = t1;
-		if (t2 > tmax) tmax = t2;
-		//No collision if slab intersection becomes empty
-		if (tmin > tmax) return false;
+		if (glm::abs(d[i]) < std::numeric_limits<float>::epsilon())
+		{
+			//Ray is parallel to the slab. If the origin is not within it, there is no collision
+			if (s[i] < bMin[i] || s[i] > bMax[i]) return false;
+		}
+		else
+		{
+			//Compute intersection t value of ray with near and far plane of slab
+			float ood = 1.f / d[i];
+			float t1 = (bMin[i] - s[i]) * ood;
+			float t2 = (bMax[i] - s[i]) * ood;
+			//Make t1 be intersection with near plane, t2 with far plane
+			if (t1 > t2) std::swap(t1, t2);
+			//Compute intersection of slab intersection intervals
+			if (t1 > tmin) tmin = t1;
+			if (t2 > tmax) tmax = t2;
+			//No collision if slab intersection becomes empty
+			if (tmin > tmax) return false;
+		}
 	}
 
 	//Ray intersects both slabs. Return intersection point and t value
@@ -90,11 +94,10 @@ bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t)
 
 bool IntersectSegmentAABB(const Segment& segment, const AABB& box, vec2& p, float& t)
 {
-	float m = glm::length(segment.end - segment.start);
-	Ray r = Ray(segment.start, (segment.end - segment.start) / m);
+	Ray r = Ray(segment.start, glm::normalize(segment.end - segment.start));
 	if (IntersectRayAABB(r, box, p, t))
 	{
-		return t <= m;
+		return t <= glm::distance(segment.start, segment.end);
 	}
 	return false;
 }
