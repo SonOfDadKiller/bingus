@@ -60,10 +60,14 @@ bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t)
 		if (x1 > xmin) xmin = x1;
 		xmax = x2;
 
-		/*vec2 t1Pos = ray.start + ray.direction * x1;
-		vec2 t2Pos = ray.start + ray.direction * x2;
-		DrawDebugCircle(DEBUG_WORLD, Circle(t1Pos, 0.02f), 16, vec4(1, 1, 0, 1), false);
-		DrawDebugCircle(DEBUG_WORLD, Circle(t2Pos, 0.02f), 16, vec4(1, 0, 1, 1), false);*/
+// 		vec2 t1Pos = ray.start + ray.direction * xmin;
+// 		vec2 t2Pos = ray.start + ray.direction * xmax;
+// 		DrawDebugCircle(DEBUG_WORLD, Circle(t1Pos, 0.02f), 16, vec4(1, 1, 0, 1), false);
+// 		DrawDebugCircle(DEBUG_WORLD, Circle(t2Pos, 0.02f), 16, vec4(1, 0, 1, 1), false);
+// 		DrawDebugText(DEBUG_WORLD, t1Pos + vec2(0.02), 0.6f, vec4(1), "xmin = " + std::to_string(xmin));
+// 		DrawDebugText(DEBUG_WORLD, t2Pos + vec2(0.02), 0.6f, vec4(1), "xmax = " + std::to_string(xmax));
+
+		if (xmin > xmax) return false;
 	}
 
 	//Y slab
@@ -81,10 +85,12 @@ bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t)
 		//Make t1 be intersection with near plane, t2 with far plane
 		if (ymin > ymax) std::swap(ymin, ymax);
 
-		/*vec2 t1Pos = ray.start + ray.direction * ymin;
-		vec2 t2Pos = ray.start + ray.direction * ymax;
-		DrawDebugCircle(DEBUG_WORLD, Circle(t1Pos, 0.02f), 16, vec4(0, 1, 0, 1), false);
-		DrawDebugCircle(DEBUG_WORLD, Circle(t2Pos, 0.02f), 16, vec4(0, 0, 1, 1), false);*/
+// 		vec2 t1Pos = ray.start + ray.direction * ymin;
+// 		vec2 t2Pos = ray.start + ray.direction * ymax;
+// 		DrawDebugCircle(DEBUG_WORLD, Circle(t1Pos, 0.02f), 16, vec4(0, 1, 0, 1), false);
+// 		DrawDebugCircle(DEBUG_WORLD, Circle(t2Pos, 0.02f), 16, vec4(0, 0, 1, 1), false);
+// 		DrawDebugText(DEBUG_WORLD, t1Pos + vec2(0.02), 0.6f, vec4(1), "ymin = " + std::to_string(ymin));
+// 		DrawDebugText(DEBUG_WORLD, t2Pos + vec2(0.02), 0.6f, vec4(1), "ymax = " + std::to_string(ymax));
 
 		if (xmin > ymax || ymin > xmax) return false;
 	}
