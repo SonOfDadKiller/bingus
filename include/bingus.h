@@ -721,9 +721,10 @@ struct Segment
 	}
 };
 
+float SqDistPointToAABB(vec2 point, AABB box);
+float ClosestPtPointAABB(vec2 point, AABB box, vec2& p);
 bool TestAABBAABB(const AABB& a, const AABB& b);
 bool TestCircleCircle(const Circle& a, const Circle& b);
-float SqDistPointToAABB(vec2 point, AABB box);
 bool TestCircleAABB(const Circle& circle, const AABB& box);
 bool IntersectRayAABB(const Ray& ray, const AABB& box, vec2& p, float& t);
 bool IntersectSegmentAABB(const Segment& segment, const AABB& box, vec2& p, float& t);

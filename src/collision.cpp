@@ -1,19 +1,10 @@
 #include <bingus.h>
 #include <limits>
 
-bool TestAABBAABB(const AABB& a, const AABB& b)
+vec2 ClosestPtPointAABB(vec2 point, AABB box)
 {
-	if (a.max.x < b.min.x || a.min.x > b.max.x) return false;
-	if (a.max.y < b.min.y || a.min.y > b.max.y) return false;
-	return true;
-}
-
-bool TestCircleCircle(const Circle& a, const Circle& b)
-{
-	vec2 d = a.position - b.position;
-	float dist2 = glm::dot(d, d);
-	float radiusSum = a.radius + b.radius;
-	return dist2 <= glm::pow(radiusSum, 2);
+	return vec2(glm::clamp(point.x, box.min.x, box.max.x),
+				glm::clamp(point.y, box.min.y, box.max.y));
 }
 
 float SqDistPointToAABB(vec2 point, AABB box)
@@ -27,6 +18,21 @@ float SqDistPointToAABB(vec2 point, AABB box)
 	if (point.y > box.max.y) sqDist += glm::pow(point.y - box.max.y, 2);
 
 	return sqDist;
+}
+
+bool TestAABBAABB(const AABB& a, const AABB& b)
+{
+	if (a.max.x < b.min.x || a.min.x > b.max.x) return false;
+	if (a.max.y < b.min.y || a.min.y > b.max.y) return false;
+	return true;
+}
+
+bool TestCircleCircle(const Circle& a, const Circle& b)
+{
+	vec2 d = a.position - b.position;
+	float dist2 = glm::dot(d, d);
+	float radiusSum = a.radius + b.radius;
+	return dist2 <= glm::pow(radiusSum, 2);
 }
 
 bool TestCircleAABB(const Circle& circle, const AABB& box)
