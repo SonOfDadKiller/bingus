@@ -722,7 +722,7 @@ struct Segment
 };
 
 float SqDistPointToAABB(vec2 point, AABB box);
-float ClosestPtPointAABB(vec2 point, AABB box, vec2& p);
+vec2 ClosestPtPointAABB(vec2 point, AABB box);
 bool TestAABBAABB(const AABB& a, const AABB& b);
 bool TestCircleCircle(const Circle& a, const Circle& b);
 bool TestCircleAABB(const Circle& circle, const AABB& box);
