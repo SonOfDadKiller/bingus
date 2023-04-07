@@ -135,6 +135,17 @@ void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string
 	texts.push_back(text);
 }
 
+void DrawDebugText(u32 space, vec2 position, float size, vec4 color, std::string data, float timer)
+{
+	DebugText text;
+	text.position = vec3(position, 0);
+	text.size = size;
+	text.color = color;
+	text.data = data;
+	text.timer = timer;
+	texts.push_back(text);
+}
+
 void PushLineToBatch(vec3 start, vec3 end, vec4 color)
 {
 	vec3 pos[] = { start, end };

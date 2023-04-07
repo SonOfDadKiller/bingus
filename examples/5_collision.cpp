@@ -34,7 +34,7 @@ int main()
 	segment = Segment(vec2(-0.3), vec2(0.3));
 
 	window.pos = vec2(15, 70);
-	window.size = vec2(250, 600);
+	window.size = vec2(350, 600);
 	window.minSize = window.size;
 	window.maxSize = window.size;
 
@@ -165,8 +165,6 @@ void Draw()
 		vec4 color = intersects ? vec4(1, 0, 0, 1) : vec4(1);
 		DrawDebugLine(DEBUG_WORLD, segment.start, segment.end, 1.f, color);
 		DrawDebugAABB(DEBUG_WORLD, aabb1, color, false);
-		DrawDebugCircle(DEBUG_WORLD, Circle(aabb1.min, 0.02f), 16, vec4(0, 1, 0, 1), false);
-		DrawDebugCircle(DEBUG_WORLD, Circle(aabb1.max, 0.02f), 16, vec4(0, 0, 1, 1), false);
 
 		if (intersects)
 		{

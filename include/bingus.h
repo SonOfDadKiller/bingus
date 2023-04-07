@@ -750,4 +750,5 @@ void DrawDebugLine(u32 space, vec2 from, vec2 to, float thickness, vec4 color, f
 void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugCircle(u32 space, const Circle& circle, u32 subdiv, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer = 0.f);
+void DrawDebugText(u32 space, vec2 position, float size, vec4 color, std::string data, float timer = 0.f);
 void DrawDebug(float dt);
