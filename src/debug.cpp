@@ -191,7 +191,7 @@ void PushCircleToBatch(Circle circle, vec4 color, u32 pointCount, bool fill)
 {
 	if (fill)
 	{
-
+		
 	}
 	else
 	{

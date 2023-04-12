@@ -7,7 +7,7 @@
 
 using std::string;
 
-static const char* texture_path = "../res/textures/";
+#define TEXTURE_PATH "../res/textures"
 
 Texture::Texture(u32 id, vec2 size)
 {
@@ -30,7 +30,7 @@ Texture::Texture(const char* filePath, i32 wrapMode, i32 filter)
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true);
 
-	string full_path = string(texture_path) + filePath;
+	string full_path = string(TEXTURE_PATH) + filePath;
 	unsigned char* textureData = stbi_load(full_path.c_str(), &width, &height, &nrChannels, 0);
 	size = vec2(width, height);
 
