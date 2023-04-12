@@ -7,7 +7,7 @@
 
 using std::string;
 
-#define TEXTURE_PATH "../res/textures"
+#define TEXTURE_PATH "../res/textures/"
 
 Texture::Texture(u32 id, vec2 size)
 {
