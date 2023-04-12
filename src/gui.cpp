@@ -403,11 +403,14 @@ void ProcessGUIInput()
 	
 	if (guiMouseState == HOLD)
 	{
-		if (widgetCount != prevWidgetCount)
+		//When the number of widgets changes, activeInputWidget becomes invalid, so we try to offset it so 
+		//the user doesn't notice.
+		if (widgetCount != prevWidgetCount && activeInputWidget <= prevWidgetCount)
 		{
 			activeInputWidget += widgetCount - prevWidgetCount;
 		}
 
+		//If activeInputWidget is out of bounds, set it to 0 (no input)
 		if (activeInputWidget > widgets.size() + 1)
 		{
 			activeInputWidget = 0;
