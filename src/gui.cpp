@@ -19,6 +19,7 @@ static RenderQueue renderQueue;
 static float guiDepth;
 static InputState guiMouseState;
 static vec2 guiMousePressPosition;
+bool mouseAboveGUI;
 
 SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
@@ -75,6 +76,7 @@ void InitializeGUI()
 	});
 
 	guiMouseState = RELEASE;
+	mouseAboveGUI = false;
 }
 
 void SetGUICanvasSize(vec2 size)
@@ -96,6 +98,8 @@ void BeginGUI()
 
 	prevWidgetCount = widgetCount;
 	widgetCount = 0;
+
+	mouseAboveGUI = false;
 }
 
 void NormalizeRect(vec2& position, vec2& size)
@@ -188,12 +192,14 @@ void GUIWidget::Build()
 	depth = guiDepth;
 	guiDepth -= 0.0001f;
 
+	widgetCount++;
+
 	for (auto it = children.begin(); it != children.end(); it++)
 	{
 		widgets[*it].Build();
 	}
 
-	widgetCount++;
+	
 }
 
 void GUIWidget::Draw()
@@ -380,6 +386,8 @@ void GUIWidget::ProcessInput()
 		masks.pop_back();
 		break;
 	}
+
+	if (vars.hoveredState) mouseAboveGUI = true;
 }
 
 void BuildGUI()
@@ -405,13 +413,30 @@ void ProcessGUIInput()
 	{
 		//When the number of widgets changes, activeInputWidget becomes invalid, so we try to offset it so 
 		//the user doesn't notice.
-		if (widgetCount != prevWidgetCount && activeInputWidget <= prevWidgetCount)
-		{
-			activeInputWidget += widgetCount - prevWidgetCount;
-		}
+		//NOTE: Can't do this properly yet as I cannot tell if widgets were added before or after an index
+
+		//if (widgetCount != prevWidgetCount)
+		//{
+		//	//If widgets were added, input widget index should go up
+		//	if (widgetCount > prevWidgetCount)
+		//	{
+		//		//Widget count increased, if widgets were added before the active widget, offset forwards
+		//		if (activeInputWidget < prevWidgetCount)
+		//		{
+		//			activeInputWidget += prevWidgetCount - widgetCount;
+		//		}
+		//	}
+		//	else
+		//	{
+		//		if (activeInputWidget > prevWidgetCount)
+		//		{
+		//			activeInputWidget -= prevWidgetCount - widgetCount;
+		//		}
+		//	}
+		//}
 
 		//If activeInputWidget is out of bounds, set it to 0 (no input)
-		if (activeInputWidget > widgets.size() + 1)
+		if (activeInputWidget >= widgets.size())
 		{
 			activeInputWidget = 0;
 		}
@@ -434,15 +459,15 @@ void ProcessGUIInput()
 			if (inputWidget->vars.onValueChanged != nullptr) inputWidget->vars.onValueChanged(*inputWidget->vars.value);
 			break;
 		}
-
-		return;
 	}
-
-	activeInputWidget = 0;
-
-	for (auto it = widgets[0].children.rbegin(); it != widgets[0].children.rend(); it++)
+	else
 	{
-		widgets[*it].ProcessInput();
+		activeInputWidget = 0;
+
+		for (auto it = widgets[0].children.rbegin(); it != widgets[0].children.rend(); it++)
+		{
+			widgets[*it].ProcessInput();
+		}
 	}
 }
 
