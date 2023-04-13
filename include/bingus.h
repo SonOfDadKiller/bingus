@@ -559,6 +559,7 @@ void UnregisterInputListener(InputListener* listener);
 extern SpriteSheet defaultGuiSpritesheet;
 extern SpriteSequence* defaultGuiSpriteSequence;
 extern Font* defaultGuiFont;
+extern bool mouseAboveGUI;
 
 void InitializeGUI();
 void SetGUICanvasSize(vec2 size);
