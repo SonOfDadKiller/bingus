@@ -45,6 +45,16 @@ void MouseScrollCallback(GLFWwindow* window, double x, double y)
 	eventBuffer.push_back(event);
 }
 
+void CharacterCallback(GLFWwindow* window, u32 codepoint)
+{
+	static std::string text = "";
+
+	if ()
+
+	text.push_back(codepoint);
+	std::cout << text << "\n";
+}
+
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	InputEvent event;
@@ -102,6 +112,7 @@ void InitializeInput(GLFWwindow* window)
 	glfwSetScrollCallback(window, MouseScrollCallback);
 	glfwSetMouseButtonCallback(window, MouseButtonCallback);
 	glfwSetKeyCallback(window, KeyCallback);
+	glfwSetCharCallback(window, CharacterCallback);
 
 	//Initialize key states
 	keyStates.reserve(KEY_LAST - 1);

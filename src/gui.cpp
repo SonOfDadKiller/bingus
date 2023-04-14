@@ -262,6 +262,20 @@ void GUIWidget::Draw()
 		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
 	}
 	break;
+	case TEXTFIELD:
+	{
+		vec2 textPos = vars.pos + vec2(4.f, 0.f);
+		vec2 textSize = vars.size;
+
+		NormalizeRect(_position, _size);
+		NormalizeRect(textPos, textSize);
+		NormalizeEdges(vars.nineSliceMargin);
+		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _textColor = glm::mix(vars.color, vec4(1.f, 1.f, 1.f, vars.color.w), 0.7f);
+		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 11));
+		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
+	}
+	break;
 	case MASK:
 		NormalizeRect(_position, _size);
 
@@ -501,6 +515,7 @@ GUIWidgetVars::GUIWidgetVars()
 	stretch = false;
 
 	text = "";
+	dummyText = "";
 	textAlignment = TOP_LEFT;
 	fontSize = 0.5f;
 	font = Fonts::arial;
@@ -628,6 +643,22 @@ namespace gui
 
 		assert(value != nullptr);
 		vars.value = value;
+		//vars.color = vec4(0.3, 0.3, 0.3, 1.f);
+		vars.textAlignment = CENTER_LEFT;
+
+		return widgetID;
+	}
+
+	u32 TextField(std::string* textValue)
+	{
+#ifdef TRACY_ENABLE
+		ZoneScoped;
+#endif
+		u32 widgetID = Widget();
+		widgets[widgetID].type = TEXTFIELD;
+
+		assert(textValue != nullptr);
+		vars.textValue = textValue;
 		//vars.color = vec4(0.3, 0.3, 0.3, 1.f);
 		vars.textAlignment = CENTER_LEFT;
 

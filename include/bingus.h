@@ -487,8 +487,53 @@ struct TestEntity : Entity
 #define KEY_X				27
 #define KEY_Y				28
 #define KEY_Z				29
-#define KEY_SPACE			30
-#define KEY_ESCAPE			31
+
+#define KEY_0				30
+#define KEY_1				31
+#define KEY_2				32
+#define KEY_3				33
+#define KEY_4				34
+#define KEY_5				35
+#define KEY_6				36
+#define KEY_7				37
+#define KEY_8				38
+#define KEY_9				39
+
+#define KEY_APOSTROPHE		40
+#define KEY_COMMA			41
+#define KEY_MINUS			42
+#define KEY_PERIOD			43
+#define KEY_SLASH			44
+#define KEY_BACKSLASH		45
+#define KEY_EQUAL			46
+#define KEY_LEFT_BRACKET	47
+#define KEY_RIGHT_BRACKET	48
+#define KEY_GRAVE_ACCENT	49
+
+#define KEY_SPACE			50
+#define KEY_ESCAPE			51
+#define KEY_ENTER			52
+#define KEY_TAB				53
+#define KEY_BACKSPACE		54
+#define KEY_INSERT			55
+#define KEY_DELETE			56
+#define KEY_UP				57
+#define KEY_RIGHT			58
+#define KEY_DOWN			59
+#define KEY_LEFT			60
+#define KEY_PAGE_UP			61
+#define KEY_PAGE_DOWN		62
+#define KEY_HOME			63
+#define KEY_END				64
+#define KEY_CAPS_LOCK		65
+#define KEY_SCROLL_LOCK		66
+#define KEY_NUM_LOCK		67
+#define KEY_PRINT_SCREEN	68
+#define KEY_PAUSE			69
+#define KEY_
+
+
+
 #define KEY_LAST			32
 
 enum InputState
@@ -531,6 +576,7 @@ struct InputBinding
 struct InputListener
 {
 	std::unordered_map<InputEvent, InputBinding, InputEventKeyHasher> bindings;
+	std::function<u32(void)> onKeyReceive;
 	i32 priority;
 	bool blocking;
 
@@ -573,7 +619,7 @@ void DrawGUI();
 //TODO: Radial Button
 
 enum LayoutType { NONE, HORIZONTAL, VERTICAL };
-enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, SLIDER, LAYOUT, MASK, WINDOW };
+enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, SLIDER, TEXTFIELD, LAYOUT, MASK, WINDOW };
 enum GUIImageSource { BLOCK, BOX, CROSS, TICK, MINUS, PLUS, ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT, GLASS, TEXT_FIELD_BG };
 
 struct GUIWidgetVars
@@ -593,6 +639,7 @@ struct GUIWidgetVars
 	bool stretch;
 	
 	std::string text;
+	std::string dummyText;
 	vec2 textAlignment;
 	float fontSize;
 	Font* font;
@@ -607,6 +654,9 @@ struct GUIWidgetVars
 	float min;
 	float max;
 	std::function<void(float)> onValueChanged;
+
+	std::string* textValue;
+	std::function<void(std::string)> onTextValueChanged;
 
 	GUIWidgetVars();
 };
@@ -656,6 +706,7 @@ namespace gui
 	u32 Button(bool* state, InputState eventState);
 	u32 Tickbox(bool* state);
 	u32 Slider(float* value);
+	u32 TextField(std::string* textValue);
 	u32 Layout(LayoutType type);
 	u32 Mask();
 	u32 Window(GUIWindow* window);
