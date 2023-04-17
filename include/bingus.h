@@ -277,6 +277,13 @@ struct Fonts
 	static Font* linuxLibertine;
 };
 
+struct TextRenderInfo
+{
+	vec2 caretOffsetInPixels;
+	vec2 renderScale;
+	float lineHeightInPixels;
+};
+
 struct Text
 {
 	std::string data;
@@ -379,7 +386,9 @@ struct TextBatch : RenderBatch
 
 	void Init() override;
 	void Clear() override;
+
 	void PushText(const Text& text);
+	void PushText(const Text& text, TextRenderInfo& info);
 };
 
 struct RenderQueue
@@ -413,6 +422,7 @@ struct RenderQueue
 	void PushStep(void(*preDraw)(), void(*postDraw)());
 	void PushSprite(const Sprite& sprite);
 	void PushText(const Text& text);
+	void PushText(const Text& text, TextRenderInfo& info);
 	void Draw();
 };
 
@@ -461,6 +471,7 @@ struct TestEntity : Entity
 #define MOUSE_RIGHT			1
 #define MOUSE_SCROLL_UP		2
 #define MOUSE_SCROLL_DOWN	3
+
 #define KEY_A				4
 #define KEY_B				5
 #define KEY_C				6
@@ -530,11 +541,17 @@ struct TestEntity : Entity
 #define KEY_NUM_LOCK		67
 #define KEY_PRINT_SCREEN	68
 #define KEY_PAUSE			69
-#define KEY_
-
-
-
-#define KEY_LAST			32
+#define KEY_F0				70
+#define KEY_F1				71
+#define KEY_F2				72
+#define KEY_F3				73
+#define KEY_F4				74
+#define KEY_F5				75
+#define KEY_F6				76
+#define KEY_F7				77
+#define KEY_F8				78
+#define KEY_F9				79
+#define KEY_LAST			80
 
 enum InputState
 {
@@ -590,6 +607,7 @@ struct InputListener
 };
 
 extern InputListener globalInputListener;
+extern std::string* inputString;
 
 extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;
@@ -634,6 +652,8 @@ struct GUIWidgetVars
 	vec4 color;
 	Edges nineSliceMargin;
 
+	bool receiveInput;
+
 	LayoutType layoutType;
 	float spacing;
 	bool stretch;
@@ -641,7 +661,7 @@ struct GUIWidgetVars
 	std::string text;
 	std::string dummyText;
 	vec2 textAlignment;
-	float fontSize;
+	float textHeightInPixels;
 	Font* font;
 
 	bool* state;

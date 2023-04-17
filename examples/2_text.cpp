@@ -23,7 +23,7 @@ TextBatch staticBatch;
 
 void Start()
 {
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
 	{
 		ExitGame();
 	});
@@ -68,10 +68,20 @@ void Draw()
 	dynamicBatch.Clear();
 
 	vec4 color = vec4(0.7f + sin(GetTime() * 0.5f) * 0.3f, 0.7f + cos(GetTime() * 1.f) * 0.3f, 0.7f + cos(GetTime() * 2.f) * 0.3f, 1.f);
+
+	vec2 textPos = vec2(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f);
+	vec2 textExtents = vec2(1, 0.5f);
+
 	dynamicBatch.PushText(Text("this text is dynamic",
-							   vec3(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f, 0),
-							   vec2(2, 0), vec2(0.6),
-							   CENTER, 4.f, color, Fonts::linuxLibertine));
+		vec3(textPos, 0),					//position
+		textExtents,						//extents
+		vec2(1.f),							//scale
+		CENTER,								//alignment
+		0.5f,								//text size
+		color,								//color
+		Fonts::linuxLibertine));			//font
+
+	DrawDebugAABB(DEBUG_WORLD, AABB(textPos, textPos + textExtents), vec4(1.f), false);
 
 	staticBatch.Draw();
 	dynamicBatch.Draw();

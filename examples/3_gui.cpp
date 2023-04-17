@@ -27,12 +27,16 @@ void Start()
 	{
 		ExitGame();
 	});
+
+	std::cout << "widget size: " << sizeof(GUIWidget) << "B";
 }
 
 using namespace gui;
 
 std::vector<GUIWindow> windows;
 bool tickboxState;
+
+std::string text;
 
 void Update(float dt)
 {
@@ -46,6 +50,12 @@ void Update(float dt)
 			Tickbox(&tickboxState);
 				vars.size = vec2(32);
 				vars.pos = vec2(25);
+			EndNode();
+			TextField(&text);
+				vars.pos = vec2(25, 100);
+				vars.size = vec2(200, 40);
+				vars.textHeightInPixels = 25.f;
+				//vars.
 			EndNode();
 		EndNode();
 	}
@@ -75,7 +85,7 @@ void Update(float dt)
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
 			vars.onPress = []() {
-				windows.pop_back();
+				if (windows.size() != 0) windows.pop_back();
 			};
 			Image(MINUS);
 				vars.pivot = vars.anchor = CENTER;

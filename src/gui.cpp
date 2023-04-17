@@ -8,7 +8,8 @@ static std::vector<GUIWidget> widgets;
 static std::vector<u32> widgetStack;
 static std::vector<Rect> masks;
 //static u32 highestInputWidget;
-static u32 activeInputWidget;
+static u32 hoverWidget;
+static u32 interactWidget;
 
 static u32 widgetCount;
 static u32 prevWidgetCount;
@@ -25,7 +26,7 @@ SpriteSheet defaultGuiSpritesheet;
 SpriteSequence* defaultGuiSpriteSequence;
 Font* defaultGuiFont;
 
-void InitializeGUI() 
+void InitializeGUI()
 {
 	vec2 uiFrameSize = vec2(128);
 	defaultGuiSpritesheet = SpriteSheet("ui.png", {
@@ -100,8 +101,10 @@ void BeginGUI()
 	widgetCount = 0;
 
 	mouseAboveGUI = false;
+	inputString = nullptr;
 }
 
+//Convert position and size from pixel coordinates to normalized screen coordinates
 void NormalizeRect(vec2& position, vec2& size)
 {
 	position = (position / (GetWindowSize() / 2.f)) - vec2(1);
@@ -198,8 +201,6 @@ void GUIWidget::Build()
 	{
 		widgets[*it].Build();
 	}
-
-	
 }
 
 void GUIWidget::Draw()
@@ -211,6 +212,7 @@ void GUIWidget::Draw()
 	vec2 _position = vars.pos;
 	vec2 _size = vars.size;
 
+
 	switch (type)
 	{
 	case IMAGE:
@@ -220,15 +222,18 @@ void GUIWidget::Draw()
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, vars.color, spriteSequence, (u32)vars.source));
 		break;
 	case TEXT:
+	{
 		NormalizeRect(_position, _size);
+		float textHeightNormalized = vars.textHeightInPixels = 720.f / GetWindowSize().y;
 
-		renderQueue.PushText(Text(vars.text, vec3(_position, depth), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, vars.color, vars.font));
+		renderQueue.PushText(Text(vars.text, vec3(_position, depth), _size, vec2(1440) / GetWindowSize(), vars.textAlignment, textHeightNormalized, vars.color, vars.font));
 		break;
+	}
 	case BUTTON:
 	{
 		NormalizeRect(_position, _size);
 		NormalizeEdges(vars.nineSliceMargin);
-		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _color = vars.color - (hoverWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
 	}
 	break;
@@ -237,7 +242,7 @@ void GUIWidget::Draw()
 		NormalizeRect(_position, _size);
 		NormalizeEdges(vars.nineSliceMargin);
 
-		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _color = vars.color - (hoverWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 1));
 		if (*vars.state) renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 2));
 	}
@@ -255,25 +260,44 @@ void GUIWidget::Draw()
 		NormalizeRect(linePos, lineSize);
 		NormalizeRect(textPos, textSize);
 		NormalizeEdges(vars.nineSliceMargin);
-		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _color = vars.color - (hoverWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
 		vec4 _textColor = glm::mix(vars.color, vec4(1.f, 1.f, 1.f, vars.color.w), 0.7f);
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 11));
 		renderQueue.PushSprite(Sprite(vec3(linePos, depth), lineSize, BOTTOM_LEFT, 0.f, Edges::None(), vec4(1.f), spriteSequence, 0));
-		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
+		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.textHeightInPixels, _textColor, vars.font));
 	}
 	break;
 	case TEXTFIELD:
 	{
 		vec2 textPos = vars.pos + vec2(4.f, 0.f);
-		vec2 textSize = vars.size;
+		vec2 textExtents = vars.size;
 
 		NormalizeRect(_position, _size);
-		NormalizeRect(textPos, textSize);
+		NormalizeRect(textPos, textExtents);
 		NormalizeEdges(vars.nineSliceMargin);
-		vec4 _color = vars.color - (activeInputWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.1, 0.1, 0.1, 0.0)) : vec4(0));
+		vec4 _color = vars.color - (hoverWidget == id ? (guiMouseState == HOLD ? vec4(0.2, 0.2, 0.2, 0.0) : vec4(0.5, 0.5, 0.5, 0.0)) : vec4(0));
 		vec4 _textColor = glm::mix(vars.color, vec4(1.f, 1.f, 1.f, vars.color.w), 0.7f);
 		renderQueue.PushSprite(Sprite(vec3(_position, depth), _size, BOTTOM_LEFT, 0.f, vars.nineSliceMargin, _color, spriteSequence, 11));
-		renderQueue.PushText(Text(std::to_string(*vars.value), vec3(textPos, depth), textSize, vec2(1440) / GetWindowSize(), vars.textAlignment, vars.fontSize, _textColor, vars.font));
+
+		TextRenderInfo info;
+		info.caretOffsetInPixels = vec2(0);
+		info.lineHeightInPixels = 40.f;
+		info.renderScale = vec2(1);
+		vec2 textScale = vec2(1440) / GetWindowSize();
+		float textHeightNormalized = vars.textHeightInPixels = 720.f / GetWindowSize().y;
+		renderQueue.PushText(Text(*vars.textValue, vec3(textPos, depth), textExtents, textScale, vars.textAlignment, textHeightNormalized, _textColor, vars.font), info);
+
+		if (interactWidget == id)// && (int)(GetTime() * 2.f) % 2 == 0)
+		{
+			vec2 caretSize = vec2(2.f, info.lineHeightInPixels);
+
+
+
+			vec2 caretPos = info.caretOffsetInPixels;
+			NormalizeRect(caretPos, caretSize);
+			caretPos += vec2(1);
+			renderQueue.PushSprite(Sprite(vec3(textPos + caretPos, depth), caretSize, BOTTOM_LEFT, 0.f, Edges::None(), vec4(1), spriteSequence, 0));
+		}
 	}
 	break;
 	case MASK:
@@ -321,67 +345,31 @@ void GUIWidget::ProcessInput()
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
-	if (type == MASK)
-	{
-		masks.push_back(Rect(vars.pos, vars.pos + vars.size));
-	}
 
+	//If this widget is a mask, push it onto the stack and pop it after processing its children
+	if (type == MASK) masks.push_back(Rect(vars.pos, vars.pos + vars.size));
+
+	//Process children in reverse order
 	for (auto it = children.rbegin(); it != children.rend(); it++)
 	{
 		widgets[*it].ProcessInput();
 	}
 
-	switch (type)
+	if (type == MASK) masks.pop_back();
+
+	//Check for input on widgets that may receive it
+	if (vars.receiveInput)
 	{
-	case BUTTON:
-		if (activeInputWidget == 0)
+		if (hoverWidget == 0)
 		{
+			//No widget is being hovered so far this frame, check if we are hovered
 			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
 				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
 
-			if (vars.hoveredState) 
+			if (vars.hoveredState)
 			{
-				activeInputWidget = id;
-
-				//Trigger events if necessary
-				if (guiMouseState == PRESS && vars.onPress != nullptr) vars.onPress();
-			}
-		}
-		else
-		{
-			vars.hoveredState = false;
-		}
-		
-		if (vars.state != nullptr)
-		{
-			*vars.state = vars.hoveredState && guiMouseState == vars.eventState;
-		}
-		
-		break;
-	case TICKBOX:
-		if (activeInputWidget == 0)
-		{
-			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
-				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
-
-			if (vars.hoveredState) activeInputWidget = id;
-		}
-		else
-		{
-			vars.hoveredState = false;
-		}
-
-		*vars.state = guiMouseState == PRESS && vars.hoveredState ? !(*vars.state) : *vars.state;
-		break;
-	case SLIDER:
-		if (activeInputWidget == 0)
-		{
-			vars.hoveredState = !PointIsHiddenByMask(mousePosition) && (mousePosition.x > vars.pos.x && mousePosition.x < vars.pos.x + vars.size.x
-				&& mousePosition.y > vars.pos.y && mousePosition.y < vars.pos.y + vars.size.y);
-
-			if (vars.hoveredState) 
-			{
-				activeInputWidget = id;
+				hoverWidget = id;
+				mouseAboveGUI = true;
 			}
 		}
 		else
@@ -389,19 +377,36 @@ void GUIWidget::ProcessInput()
 			vars.hoveredState = false;
 		}
 
-		if (vars.hoveredState && guiMouseState == PRESS)
+		if (guiMouseState == PRESS && vars.hoveredState)
 		{
-			float sliderVal = glm::clamp((mousePosition.x - vars.pos.x) / vars.size.x, 0.f, 1.f);
-			*vars.value = glm::mix(vars.min, vars.max, sliderVal);
-			if (vars.onValueChanged != nullptr) vars.onValueChanged(*vars.value);
+			interactWidget = id;
 		}
+
+		switch (type)
+		{
+		case BUTTON: 
+			if (interactWidget == id && vars.onPress != nullptr) vars.onPress();
+			if (vars.state != nullptr) *vars.state = vars.hoveredState && guiMouseState == vars.eventState;
+			break;
+		case TICKBOX:
+			*vars.state = guiMouseState == PRESS && vars.hoveredState ? !(*vars.state) : *vars.state;
+			break;
+		case SLIDER:
+			if (interactWidget == id)
+			{
+				float sliderVal = glm::clamp((mousePosition.x - vars.pos.x) / vars.size.x, 0.f, 1.f);
+				*vars.value = glm::mix(vars.min, vars.max, sliderVal);
+				if (vars.onValueChanged != nullptr) vars.onValueChanged(*vars.value);
+			}
 		break;
-	case MASK:
-		masks.pop_back();
-		break;
+		case TEXTFIELD:
+			if (interactWidget == id)
+			{
+				inputString = vars.textValue;
+			}
+			break;
+		}
 	}
-
-	if (vars.hoveredState) mouseAboveGUI = true;
 }
 
 void BuildGUI()
@@ -417,6 +422,7 @@ void BuildGUI()
 	}
 }
 
+//Process input for the entire GUI this frame
 void ProcessGUIInput()
 {
 #ifdef TRACY_ENABLE
@@ -450,12 +456,10 @@ void ProcessGUIInput()
 		//}
 
 		//If activeInputWidget is out of bounds, set it to 0 (no input)
-		if (activeInputWidget >= widgets.size())
-		{
-			activeInputWidget = 0;
-		}
+		if (hoverWidget >= widgets.size()) hoverWidget = 0;
+		if (interactWidget >= widgets.size()) interactWidget = 0;
 
-		GUIWidget* inputWidget = &widgets[activeInputWidget];
+		GUIWidget* inputWidget = &widgets[hoverWidget];
 		switch (inputWidget->type)
 		{
 		case BUTTON:
@@ -476,8 +480,9 @@ void ProcessGUIInput()
 	}
 	else
 	{
-		activeInputWidget = 0;
+		hoverWidget = 0;
 
+		//Go through tree and process input on widgets
 		for (auto it = widgets[0].children.rbegin(); it != widgets[0].children.rend(); it++)
 		{
 			widgets[*it].ProcessInput();
@@ -510,6 +515,8 @@ GUIWidgetVars::GUIWidgetVars()
 	color = vec4(1);
 	nineSliceMargin = Edges::All(8.f);
 
+	receiveInput = false;
+
 	layoutType = NONE;
 	spacing = 0.f;
 	stretch = false;
@@ -517,7 +524,7 @@ GUIWidgetVars::GUIWidgetVars()
 	text = "";
 	dummyText = "";
 	textAlignment = TOP_LEFT;
-	fontSize = 0.5f;
+	textHeightInPixels = 25.f;
 	font = Fonts::arial;
 
 	state = nullptr;
@@ -571,6 +578,7 @@ namespace gui
 		widgets[widgetID].type = IMAGE;
 
 		vars.source = _source;
+		//vars.receiveInput = true;
 
 		/*if (_source == BOX)
 		{
@@ -601,6 +609,8 @@ namespace gui
 		u32 widgetID = Widget();
 		widgets[widgetID].type = BUTTON;
 
+		vars.receiveInput = true;
+
 		return widgetID;
 	}
 
@@ -613,6 +623,7 @@ namespace gui
 		widgets[widgetID].type = BUTTON;
 
 		assert(state != nullptr);
+		vars.receiveInput = true;
 		vars.state = state;
 		vars.eventState = eventState;
 
@@ -628,6 +639,7 @@ namespace gui
 		widgets[widgetID].type = TICKBOX;
 
 		assert(state != nullptr);
+		vars.receiveInput = true;
 		vars.state = state;
 
 		return widgetID;
@@ -642,6 +654,7 @@ namespace gui
 		widgets[widgetID].type = SLIDER;
 
 		assert(value != nullptr);
+		vars.receiveInput = true;
 		vars.value = value;
 		//vars.color = vec4(0.3, 0.3, 0.3, 1.f);
 		vars.textAlignment = CENTER_LEFT;
@@ -658,6 +671,7 @@ namespace gui
 		widgets[widgetID].type = TEXTFIELD;
 
 		assert(textValue != nullptr);
+		vars.receiveInput = true;
 		vars.textValue = textValue;
 		//vars.color = vec4(0.3, 0.3, 0.3, 1.f);
 		vars.textAlignment = CENTER_LEFT;

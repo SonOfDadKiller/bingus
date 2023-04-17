@@ -11,6 +11,8 @@ vec3 mouseWorldDelta;
 vec2 mousePrevPosition;
 vec3 mousePrevWorldPosition;
 
+std::string* inputString;
+
 static std::vector<InputListener*> listeners;
 static std::vector<InputEvent> eventBuffer;
 static std::vector<InputState> keyStates;
@@ -47,12 +49,10 @@ void MouseScrollCallback(GLFWwindow* window, double x, double y)
 
 void CharacterCallback(GLFWwindow* window, u32 codepoint)
 {
-	static std::string text = "";
-
-	if ()
-
-	text.push_back(codepoint);
-	std::cout << text << "\n";
+	if (inputString != nullptr)
+	{
+		inputString->push_back(codepoint);
+	}
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -61,8 +61,24 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	
 	switch (action)
 	{
-		case GLFW_PRESS: event.state = PRESS; break;
+		case GLFW_PRESS: 
+			event.state = PRESS; 
+			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
+			{
+				inputString->erase(inputString->end() - 1);
+			}
+			break;
 		case GLFW_RELEASE: event.state = RELEASE; break;
+		case GLFW_REPEAT:
+			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
+			{
+				inputString->erase(inputString->end() - 1);
+			}
+			else
+			{
+				return;
+			}
+			break;
 		default: return;
 	}
 
@@ -97,6 +113,9 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_Z: event.key = KEY_Z; break;
 		case GLFW_KEY_SPACE: event.key = KEY_SPACE; break;
 		case GLFW_KEY_ESCAPE: event.key = KEY_ESCAPE; break;
+		case GLFW_KEY_BACKSPACE: event.key = KEY_BACKSPACE; break;
+			//
+			//break;
 		default: return;
 	}
 

@@ -663,6 +663,11 @@ void TextBatch::Clear()
 
 void TextBatch::PushText(const Text& text)
 {
+	PushText(text, TextRenderInfo());
+}
+
+void TextBatch::PushText(const Text& text, TextRenderInfo& info)
+{
 #ifdef TRACY_ENABLE
 	ZoneScoped;
 #endif
@@ -672,7 +677,7 @@ void TextBatch::PushText(const Text& text)
 	LazyInit();
 	bufferDirty = true;
 
-	float actualSize = text.textSize / 1000;
+	float actualSize = text.textSize;
 	vec2 origin = vec2(0);
 
 	GrowVertexCapacity(vertexCount + text.data.size() * 4);
@@ -683,6 +688,9 @@ void TextBatch::PushText(const Text& text)
 	glyphRects.reserve(text.data.size());
 
 	vec2 extents = vec2(0);
+	info.caretOffsetInPixels = vec2(0);
+	info.lineHeightInPixels = (float)text.font->lineHeight * text.textSize;
+	info.renderScale = actualSize * text.scale;
 
 	for (auto it = text.data.begin(); it != text.data.end(); it++)
 	{
@@ -705,19 +713,28 @@ void TextBatch::PushText(const Text& text)
 
 		if (newLine)
 		{
-			//New line, move origin back to start
-			origin = vec2(0, origin.y - (float)text.font->lineHeight);
-			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize; //Recalc
+			//Move origin to new line position
+			origin.x = 0.f;
+			origin.y -= (float)text.font->lineHeight;
+			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text.scale; //Copy of glyphpos calc above
+			
+			//info.caretOffsetInPixels.x = 0.f;
+			//info.caretOffsetInPixels.y -= (float)text.font->lineHeight * text.textSize;
 		}
 
 		//Step extents
 		if (glyphPos.x + glyphSize.x > extents.x) extents.x = glyphPos.x + glyphSize.x;
 		if (glyphPos.y + glyphSize.y > extents.y) extents.y = glyphPos.y + glyphSize.y;
 
+
 		//Move glyph into world space
 		glyphPos += vec2(text.position.x, text.position.y);
 
 		origin.x += glyph->advance;
+		info.caretOffsetInPixels = origin * text.textSize;
+
+		//info.caretOffsetInPixels.x += glyph->advance * text.textSize * 0.5f;
+
 
 		glyphRects.push_back({ glyphPos, glyphSize, glyph });
 	}
@@ -840,6 +857,11 @@ void RenderQueue::PushSprite(const Sprite& sprite)
 
 void RenderQueue::PushText(const Text& text)
 {
+	PushText(text, TextRenderInfo());
+}
+
+void RenderQueue::PushText(const Text& text, TextRenderInfo& info)
+{
 	u32 textBatchIndex;
 
 	//Create new steps if the index has grown past the current size
@@ -869,7 +891,7 @@ void RenderQueue::PushText(const Text& text)
 		currentTextBatchIndex++;
 	}
 
-	textBatches[textBatchIndex].PushText(text);
+	textBatches[textBatchIndex].PushText(text, info);
 }
 
 void RenderQueue::Draw()
