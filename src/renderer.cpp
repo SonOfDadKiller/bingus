@@ -13,9 +13,92 @@
 #include <map>
 #include <algorithm>
 
+
+#ifndef OLD_RENDERER
+
+// .d88888b  dP                      dP                   
+// 88.    "' 88                      88                   
+// `Y88888b. 88d888b. .d8888b. .d888b88 .d8888b. 88d888b. 
+//       `8b 88'  `88 88'  `88 88'  `88 88ooood8 88'  `88 
+// d8'   .8P 88    88 88.  .88 88.  .88 88.  ... 88       
+//  Y88888P  dP    dP `88888P8 `88888P8 `88888P' dP
+
+u32 activeShaderID;
+
+void SetActiveShader(Shader* shader)
+{
+	assert(shader != nullptr);
+
+	if (shader->id != activeShaderID)
+	{
+		glUseProgram(shader->id);
+		activeShaderID = shader->id;
+	}
+}
+
+// dP     dP                     dP                     
+// 88     88                     88                     
+// 88    .8P .d8888b. 88d888b. d8888P .d8888b. dP.  .dP 
+// 88    d8' 88ooood8 88'  `88   88   88ooood8  `8bd8'  
+// 88  .d8P  88.  ... 88         88   88.  ...  .d88b.  
+// 888888'   `88888P' dP         dP   `88888P' dP'  `dP
+
+
+
+VertBuffer::VertBuffer(VertexType vertexType)
+{
+	this->vertexType = vertexType;
+
+	//Generate and bind buffers
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glGenBuffers(1, &ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+	//Set up vertex attributes
+	if (vertexType == POS_COLOR)
+	{
+		u64 vertexWidth = sizeof(vec3) + sizeof(vec4);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexWidth, (void*)0);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexWidth, (void*)sizeof(vec3));
+	}
+	else if (vertexType == POS_UV)
+	{
+		u64 vertexWidth = sizeof(vec3) + sizeof(vec2);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexWidth, (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexWidth, (void*)sizeof(vec3));
+	}
+	else if (vertexType == POS_UV_COLOR)
+	{
+		u64 vertexWidth = sizeof(vec3) + sizeof(vec2) + sizeof(vec4);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexWidth, (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexWidth, (void*)sizeof(vec3));
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexWidth, (void*)(sizeof(vec3) + sizeof(vec2)));
+	}
+
+	//Unbind
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void VertBuffer::Destroy()
+{
+	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &ebo);
+	glDeleteVertexArrays(1, &vao);
+}
+
+#endif
+
+
+
+#ifdef OLD_RENDERER
+
 RenderQueue globalRenderQueue;
 
-//TODO: Pull sprite ownership out of renderer
 static vec2 cameraPosition = vec2(-1, -1);
 static float cameraSize;
 static u32 cameraUBO;
@@ -1094,3 +1177,4 @@ void DebugPrintFontData(Font* font)
 	std::cout << "\n";
 }
 
+#endif

@@ -122,6 +122,94 @@ float wrapMax(float x, float max);
 float wrapMinMax(float x, float min, float max);
 vec4 hsv(vec4 hsv);
 
+#ifndef OLD_RENDERER
+
+//Texture
+struct Texture
+{
+	vec2 size;
+	u32 id;
+	i32 cachedWrapMode;
+	i32 cachedFilterMode;
+
+	void SetWrapMode(i32 wrapMode);
+	void SetFilterMode(i32 filterMode);
+};
+
+//Returns a pointer to a managed texture resource. Will load from disk upon first call.
+Texture* LoadTexture(std::string filenameAndPath);
+
+//Shader
+enum ShaderType { VERTEX, FRAGMENT };
+
+#define SHADER_COLOR		0x01
+#define SHADER_MAIN_TEX		0x02
+#define SHADER_SPEC_POW		0x04 
+
+struct Shader
+{
+	u32 id;
+	u32 uniforms;
+	std::unordered_map<u32, u32> uniformLocations;
+
+	void EnableUniform(u32 uniformID, const char* uniformName);
+	void EnableUniforms(u32 uniformMask);
+	bool HasUniform(u32 uniform);
+
+	void SetUniformInt(u32 uniform, int i);
+	void SetUniformFloat(u32 uniform, float f);
+	void SetUniformVec2(u32 uniform, vec2 v2);
+	void SetUniformVec3(u32 uniform, vec3 v3);
+	void SetUniformVec4(u32 uniform, vec4 v4);
+};
+
+Shader* LoadShader(std::string vertexFilenameAndPath, std::string fragFilenameAndPath);
+extern u32 activeShaderID;
+
+//Vertex
+enum VertexType { POS_COLOR, POS_UV, POS_UV_COLOR };
+
+struct Vertex_PosColor
+{
+	vec3 position;
+	vec4 color;
+};
+
+struct Vertex_PosUV
+{
+	vec3 position;
+	vec2 uv;
+};
+
+struct Vertex_PosUVColor
+{
+	vec3 position;
+	vec2 uv;
+	vec4 color;
+};
+
+struct VertBuffer
+{
+	GLuint vao, vbo, ebo;
+	VertexType vertexType;
+	std::vector<Vertex_PosColor> posColorVerts;
+	std::vector<Vertex_PosUV> posUVVerts;
+	std::vector<Vertex_PosUVColor> posUVColorVerts;
+
+	VertBuffer(VertexType vertexType);
+	void Destroy();
+};
+
+//Render pipeline
+void SetActiveShader(Shader* shader);
+extern Shader* activeShader;
+
+#endif
+
+
+
+#ifdef OLD_RENDERER
+
 //Texture
 //TODO: Implement proper resource loading system
 //TODO: Create texture type
@@ -443,6 +531,8 @@ vec2 GetCameraPosition();
 float GetCameraSize();
 
 bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
+
+#endif
 
 //Entity
 struct Entity
