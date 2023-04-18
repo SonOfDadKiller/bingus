@@ -195,6 +195,7 @@ struct VertBuffer
 	std::vector<Vertex_PosColor> posColorVerts;
 	std::vector<Vertex_PosUV> posUVVerts;
 	std::vector<Vertex_PosUVColor> posUVColorVerts;
+	bool dirty; //Is true if vertices need to be sent to GPU
 
 	VertBuffer(VertexType vertexType);
 	void Destroy();
@@ -203,6 +204,125 @@ struct VertBuffer
 //Render pipeline
 void SetActiveShader(Shader* shader);
 extern Shader* activeShader;
+
+//Rectangle anchors
+#define TOP_LEFT		vec2(0.0, 1.0)
+#define TOP_CENTER		vec2(0.5, 1.0)
+#define TOP_RIGHT		vec2(1.0, 1.0)
+#define CENTER_LEFT		vec2(0.0, 0.5)
+#define CENTER			vec2(0.5, 0.5)
+#define CENTER_RIGHT	vec2(1.0, 0.5)
+#define BOTTOM_LEFT		vec2(0.0, 0.0)
+#define BOTTOM_CENTER	vec2(0.5, 0.0)
+#define BOTTOM_RIGHT	vec2(1.0, 0.0)
+
+//Sprites
+struct SpriteSequenceFrame
+{
+	Edges nineSliceSample;
+	Rect rect;
+	SpriteSequenceFrame(Edges nineSliceSample, Rect rect)
+		: nineSliceSample(nineSliceSample), rect(rect) { }
+};
+
+struct SpriteSequence
+{
+	std::vector<SpriteSequenceFrame> frames;
+
+	SpriteSequence() { }
+	SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing);
+	SpriteSequence(std::vector<SpriteSequenceFrame> frames);
+};
+
+struct SpriteSheet
+{
+	Texture* texture;
+	std::map<std::string, SpriteSequence> sequences;
+
+	SpriteSheet() { }
+	SpriteSheet(Texture* texture);
+	SpriteSheet(Texture* texture, std::map<std::string, SpriteSequence> sequences);
+};
+
+struct SpriteAnimator
+{
+	SpriteSequence* sequence;
+	SpriteSheet* sheet;
+	Timer* timer;
+
+	SpriteAnimator() { }
+	SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed);
+	u32 GetFrame();
+	void SetSequence(std::string name);
+};
+
+struct Sprite
+{
+	vec4 color;
+	Edges nineSliceMargin;
+	vec3 position;
+	vec2 size;
+	vec2 pivot;
+	SpriteSequence* sequence;
+	SpriteAnimator* animator;
+	u32 sequenceFrame;
+	float rotation;
+
+	Sprite()
+	{
+		//Default values
+		color = vec4(1);
+		nineSliceMargin = Edges::None();
+		position = vec3(0);
+		size = vec2(0);
+		pivot = vec2(0);
+		sequence = nullptr;
+		animator = nullptr;
+		sequenceFrame = 0;
+		rotation = 0.f;
+	};
+};
+
+struct RenderBatch
+{
+	VertBuffer buffer;
+	Shader shader;
+	Texture texture;
+
+	std::vector<float> vertexData;
+	std::vector<u32> indices;
+	u32 drawMode = GL_TRIANGLES;
+
+	bool initialized = false;
+	bool bufferDirty = false;
+
+	//RenderBatch() { }
+	
+	void LazyInit();
+	virtual void Init() { };
+	virtual void Clear();
+	void GrowVertexCapacity(size_t capacity); //TODO: Try and remove this function
+	void SendVertsToGPUBuffer();
+	void Draw();
+};
+
+struct SpriteBatch : RenderBatch
+{
+	SpriteSheet* sheet;
+
+	SpriteBatch() { }
+	SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet);
+
+	void Init() override;
+	void Clear() override;
+	void PushSprite(const Sprite& sprite);
+	void PushSprite9Slice(const Sprite& sprite);
+	void PushSprites(const std::vector<Sprite*>& sprites);
+	void PushSprites(const std::vector<Sprite>& sprites);
+	void PushSpritesReverse(const std::vector<Sprite*>& sprites);
+	void PushSpritesReverse(const std::vector<Sprite>& sprites);
+};
+
 
 #endif
 

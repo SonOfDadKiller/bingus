@@ -43,8 +43,6 @@ void SetActiveShader(Shader* shader)
 // 88  .d8P  88.  ... 88         88   88.  ...  .d88b.  
 // 888888'   `88888P' dP         dP   `88888P' dP'  `dP
 
-
-
 VertBuffer::VertBuffer(VertexType vertexType)
 {
 	this->vertexType = vertexType;
@@ -89,6 +87,62 @@ void VertBuffer::Destroy()
 	glDeleteBuffers(1, &vbo);
 	glDeleteBuffers(1, &ebo);
 	glDeleteVertexArrays(1, &vao);
+}
+
+// .d88888b                    oo   dP            
+// 88.    "'                        88            
+// `Y88888b. 88d888b. 88d888b. dP d8888P .d8888b. 
+//       `8b 88'  `88 88'  `88 88   88   88ooood8 
+// d8'   .8P 88.  .88 88       88   88   88.  ... 
+//  Y88888P  88Y888P' dP       dP   dP   `88888P' 
+//           88                                   
+//           dP
+
+SpriteSequence::SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing)
+{
+	for (u32 frameIndex = 0; frameIndex < count; frameIndex++)
+	{
+		SpriteSequenceFrame frame(Edges::None(),
+			Rect(vec2(firstFramePosition.x + frameIndex * frameSize.x, firstFramePosition.y),
+				 vec2(firstFramePosition.x + (frameIndex + 1) * frameSize.x, firstFramePosition.y + frameSize.y)));
+
+		frames.push_back(frame);
+	}
+}
+
+SpriteSequence::SpriteSequence(std::vector<SpriteSequenceFrame> frames)
+{
+	this->frames = frames;
+}
+
+SpriteSheet::SpriteSheet(Texture* texture)
+{
+	this->texture = texture;
+}
+
+SpriteSheet::SpriteSheet(Texture* texture, std::map<std::string, SpriteSequence> sequences)
+{
+	this->texture = texture;
+	this->sequences = sequences;
+}
+
+SpriteAnimator::SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed)
+{
+	this->sheet = sheet;
+	sequence = &this->sheet->sequences[sequenceName];
+	this->timer = CreateTimer();
+	this->timer->speed = speed;
+}
+
+u32 SpriteAnimator::GetFrame()
+{
+	return (u32)timer->timeElapsed % sequence->frames.size();
+}
+
+void SpriteAnimator::SetSequence(std::string name)
+{
+	sequence = &sheet->sequences[name];
+	this->timer->Reset();
 }
 
 #endif
