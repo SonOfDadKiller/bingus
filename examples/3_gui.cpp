@@ -27,8 +27,6 @@ void Start()
 	{
 		ExitGame();
 	});
-
-	std::cout << "widget size: " << sizeof(GUIWidget) << "B";
 }
 
 using namespace gui;
@@ -47,15 +45,14 @@ void Update(float dt)
 	for (auto window = windows.begin(); window != windows.end(); window++)
 	{
 		Window(&(*window));
-			Tickbox(&tickboxState);
-				vars.size = vec2(32);
-				vars.pos = vec2(25);
-			EndNode();
-			TextField(&text);
-				vars.pos = vec2(25, 100);
-				vars.size = vec2(200, 40);
-				vars.textHeightInPixels = 25.f;
-				//vars.
+			Mask();
+				vars.size = vec2(0);
+				vars.margin = Edges(10, 10, 80, 10);
+				TextField(&text);
+					vars.size = vec2(0);
+					vars.margin = Edges::All(0.01f);
+					vars.textHeightInPixels = 25.f;
+				EndNode();
 			EndNode();
 		EndNode();
 	}
@@ -69,10 +66,10 @@ void Update(float dt)
 			vars.margin = Edges::All(10);
 			vars.onPress = []() {
 				GUIWindow window;
-				window.pos = vec2(300);
-				window.size = vec2(400, 300);
-				window.minSize = vec2(400, 300);
-				window.maxSize = vec2(700, 500);
+				window.pos = vec2(200);
+				window.size = vec2(300, 400);
+				window.minSize = vec2(100, 100);
+				window.maxSize = vec2(7000, 6000);
 				windows.push_back(window);
 			};
 			Image(PLUS);
@@ -99,6 +96,7 @@ void Update(float dt)
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + stream.str() + "ms)");
 		gui::vars.margin = Edges::All(25);
 		gui::vars.size = vec2(0);
+		gui::vars.textHeightInPixels = 35.f;
 	gui::EndNode();
 }
 

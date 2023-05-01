@@ -4,7 +4,13 @@
 #include <sstream>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
+
+#define STB_RECT_PACK_IMPLEMENTATION
+#include <stb_rect_pack.h>
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
 
 using std::string;
 using std::ifstream;
@@ -12,9 +18,11 @@ using std::stringstream;
 
 #define TEXTURE_PATH "../res/textures/"
 #define SHADER_PATH "../res/shaders/"
+#define FONT_PATH "../res/fonts/"
 
-std::unordered_map<std::string, Texture> textures;
-std::unordered_map<std::string, Shader> shaders;
+static std::unordered_map<std::string, Texture> textures;
+static std::unordered_map<std::string, Shader> shaders;
+static std::unordered_map<std::string, Font> fonts;
 
 Texture* LoadTexture(std::string filenameAndPath)
 {
@@ -95,7 +103,7 @@ void Texture::SetFilterMode(i32 filterMode)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, cachedFilterMode);
 }
 
-u32 LoadShader(ShaderType type, string filePath)
+static u32 LoadShader(ShaderType type, string filePath)
 {
 	string s;
 	string fullPath = string(SHADER_PATH) + filePath;
@@ -160,10 +168,14 @@ Shader* LoadShader(std::string vertexFilenameAndPath, std::string fragFilenameAn
 		char info[512];
 		glGetProgramInfoLog(shader.id, 512, nullptr, info);
 		std::cout << "Failed to make shader program! : linking failed: " << info << "\n";
-		return;
+
+		return nullptr;
 	}
 
 	std::cout << "Shader program created : @" << vertexFilenameAndPath << " + " << fragFilenameAndPath << "\n";
+
+	shaders[key] = shader;
+	return &shaders[key];
 }
 
 void Shader::EnableUniform(u32 uniformID, const char* name)
@@ -216,4 +228,107 @@ void Shader::SetUniformVec4(u32 uniform, vec4 v4)
 {
 	SetActiveShader(this);
 	glUniform4f(uniformLocations[uniform], v4.x, v4.y, v4.z, v4.w);
+}
+
+Font* LoadFont(std::string filenameAndPath, u32 pixelHeight)
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	auto it = fonts.find(filenameAndPath);
+	if (it != fonts.end())
+	{
+		//Return pointer to existing font
+		return &it->second;
+	}
+
+	std::string fullPath = std::string(FONT_PATH) + filenameAndPath;
+
+	//Load .ttf file
+	//TODO: Currently this crashes if file not found! Pls fix okay thankyou
+	long size;
+	unsigned char* fontBuffer;
+	FILE* fontFile = fopen(fullPath.c_str(), "rb"); //Open file
+	fseek(fontFile, 0, SEEK_END); //Seek to end
+	size = ftell(fontFile); //Get length
+	fseek(fontFile, 0, SEEK_SET); //Seek back to start
+	fontBuffer = new unsigned char[(size_t)size]; //Allocate buffer
+	fread(fontBuffer, (size_t)size, 1, fontFile); //Read file into buffer
+	fclose(fontFile); //Close file
+
+	//Create font
+	stbtt_fontinfo fontInfo;
+	if (stbtt_InitFont(&fontInfo, fontBuffer, 0) == 0)
+	{
+		std::cout << "Loading font @" << fullPath << " failed!\n";
+		delete[] fontBuffer;
+		return nullptr;
+	}
+
+	stbtt_pack_context packContext;
+
+	const u32 unicodeCharStart = 32;
+	const u32 unicodeCharEnd = 127;
+	const u32 unicodeCharRange = unicodeCharEnd - unicodeCharStart;
+
+	const u32 atlasWidth = 1024;
+	const u32 atlasHeight = 1024;
+	const u32 atlasSize = atlasWidth * atlasHeight;
+	stbtt_packedchar packedChars[unicodeCharRange];
+	unsigned char* pixelBuffer = new unsigned char[atlasSize];
+
+	if (stbtt_PackBegin(&packContext, pixelBuffer, atlasWidth, atlasHeight, 0, 1, 0) == 0)
+	{
+		std::cout << "Packing font @" << fullPath << " failed!\n";
+		delete[] fontBuffer;
+		delete[] pixelBuffer;
+		return nullptr;
+	}
+
+	stbtt_PackSetOversampling(&packContext, 2, 2);
+	stbtt_PackFontRange(&packContext, fontBuffer, 0, (float)pixelHeight, unicodeCharStart, unicodeCharRange, packedChars);
+	stbtt_PackEnd(&packContext);
+
+	//Create atlas texture
+	u32 textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //disable byte-alignment restriction
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlasWidth, atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, pixelBuffer);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	Font font;
+	font.lineHeight = pixelHeight;
+	font.texture.id = textureID;
+	font.texture.size = vec2(atlasWidth, atlasHeight);
+	font.texture.cachedWrapMode = GL_CLAMP_TO_EDGE;
+	font.texture.cachedFilterMode = GL_LINEAR;
+
+	for (i32 c = unicodeCharStart; c < unicodeCharEnd; c++)
+	{
+		const stbtt_packedchar& packedChar = packedChars[c - unicodeCharStart];
+
+		//Create character and store in map
+		FontCharacter character;
+		character.uvMin = vec2((float)packedChar.x0 / (float)atlasWidth, (float)packedChar.y0 / (float)atlasHeight);
+		character.uvMax = vec2((float)packedChar.x1 / (float)atlasWidth, (float)packedChar.y1 / (float)atlasHeight);
+		character.size = vec2(packedChar.xoff2 - packedChar.xoff, packedChar.yoff2 - packedChar.yoff) / (float)pixelHeight;
+		character.bearing = vec2(packedChar.xoff, 1.f - packedChar.yoff) / (float)pixelHeight;
+		character.advance = packedChar.xadvance / (float)pixelHeight;
+
+		font.characters.insert(std::pair<i32, FontCharacter>(c, character));
+	}
+
+	std::cout << "Successfully loaded font : @" << fullPath << "\n";
+
+	delete[] fontBuffer;
+	delete[] pixelBuffer;
+
+	fonts[filenameAndPath] = font;
+	return &fonts[filenameAndPath];
 }

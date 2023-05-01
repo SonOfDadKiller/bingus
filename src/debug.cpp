@@ -1,9 +1,5 @@
 #include "bingus.h"
 
-static SpriteBatch spriteBatch;
-static SpriteSheet spriteSheet;
-static SpriteSequence* spriteSequence;
-
 static TextBatch textBatch;
 
 static RenderBatch lineBatch;
@@ -51,27 +47,22 @@ std::vector<DebugText> texts;
 void InitializeDebug()
 {
 	//Set up renderer
-	spriteSheet = SpriteSheet("debug.png");
-	spriteSheet.sequences["debug"] = SpriteSequence(vec2(0), vec2(256, 256), 7, 0.f);
 
-	spriteSequence = &spriteSheet.sequences["debug"];
+	//TODO: Figure out if I really want to store the buffer in heap memory like this
+	textBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	textBatch.shader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
+	textBatch.shader->EnableUniforms(SHADER_MAIN_TEX);
+	textBatch.font = LoadFont("arial.ttf", 80);
+	textBatch.texture = &textBatch.font->texture;
 
-	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-		&spriteSheet);
+	//Shader shapeShader = 
 
-	textBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
-		Fonts::arial);
-
-	Shader shapeShader = Shader("world_shape.vert", "shape.frag");
-
-	lineBatch.shader = shapeShader;
-	lineBatch.buffer = VertBuffer({VERTEX_POS, VERTEX_COLOR});
+	lineBatch.shader = LoadShader("world_shape.vert", "shape.frag");
+	lineBatch.buffer = new VertBuffer(POS_COLOR);
 	lineBatch.drawMode = GL_LINES;
 
-	polyBatch.shader = shapeShader;
-	polyBatch.buffer = VertBuffer({ VERTEX_POS, VERTEX_COLOR });
+	polyBatch.shader = LoadShader("world_shape.vert", "shape.frag");
+	polyBatch.buffer = new VertBuffer(POS_COLOR);
 	polyBatch.drawMode = GL_TRIANGLES;
 
 	glLineWidth(3.f);
@@ -137,34 +128,17 @@ void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string
 
 void DrawDebugText(u32 space, vec2 position, float size, vec4 color, std::string data, float timer)
 {
-	DebugText text;
-	text.position = vec3(position, 0);
-	text.size = size;
-	text.color = color;
-	text.data = data;
-	text.timer = timer;
-	texts.push_back(text);
+	DrawDebugText(space, vec3(position, 0.f), size, color, data, timer);
 }
 
 void PushLineToBatch(vec3 start, vec3 end, vec4 color)
 {
-	vec3 pos[] = { start, end };
-	for (int i = 0; i < 2; i++)
-	{
-		lineBatch.vertexData.push_back(pos[i].x);
-		lineBatch.vertexData.push_back(pos[i].y);
-		lineBatch.vertexData.push_back(pos[i].z);
-
-		lineBatch.vertexData.push_back(color.r);
-		lineBatch.vertexData.push_back(color.g);
-		lineBatch.vertexData.push_back(color.b);
-		lineBatch.vertexData.push_back(color.a);
-
-		lineBatch.indices.push_back(lineBatch.vertexCount + i);
-	}
-
-	lineBatch.vertexCount += 2;
-	lineBatch.bufferDirty = true;
+	lineBatch.buffer->posColorVerts.push_back(Vertex_PosColor(start, color));
+	lineBatch.buffer->posColorVerts.push_back(Vertex_PosColor(end, color));
+	lineBatch.buffer->vertexIndices.push_back(lineBatch.buffer->vertexCount);
+	lineBatch.buffer->vertexIndices.push_back(lineBatch.buffer->vertexCount + 1);
+	lineBatch.buffer->vertexCount += 2;
+	lineBatch.buffer->dirty = true;
 }
 
 void PushTriToBatch(vec3 a, vec3 b, vec3 c, vec4 color)
@@ -213,9 +187,9 @@ void DrawDebug(float dt)
 	ZoneScoped;
 #endif
 
-	lineBatch.Clear();
-	polyBatch.Clear();
-	textBatch.Clear();
+	lineBatch.buffer->Clear();
+	polyBatch.buffer->Clear();
+	textBatch.buffer->Clear();
 
 	//Process lines
 	auto line_it = lines.begin();
@@ -258,7 +232,15 @@ void DrawDebug(float dt)
 	while (texts_it != texts.end())
 	{
 		//Add text
-		textBatch.PushText(Text(texts_it->data, texts_it->position - vec3(0.25, 0.25, 0), vec2(0.5), vec2(1), CENTER, texts_it->size, texts_it->color, Fonts::arial));
+		Text text;
+		text.data = texts_it->data;
+		text.position = texts_it->position - vec3(5.f, 5.f, 0.f);
+		text.extents = vec2(10.f);
+		text.alignment = CENTER;
+		text.textSize = texts_it->size;
+		text.color = texts_it->color;
+		text.font = textBatch.font;
+		textBatch.PushText(text);
 
 		//Update timer, remove if needed
 		texts_it->timer -= dt;

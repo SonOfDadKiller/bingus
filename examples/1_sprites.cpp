@@ -27,30 +27,34 @@ SpriteSheet testSheet;
 
 void Start()
 {
-	BindInputAction(KEY_ESCAPE, HOLD, [](float dt)
+	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
 	{
 		ExitGame();
 	});
 
 	//Set up sprite batch
-	spriteSheet = SpriteSheet("spritesheet.png", { { "run", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
+	spriteSheet = SpriteSheet(LoadTexture("spritesheet.png"), { { "run", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
 	spriteAnim = SpriteAnimator(&spriteSheet, "run", 10.f);
 
-	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-		&spriteSheet);
+	spriteBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	spriteBatch.shader = LoadShader("world_vertcolor.vert", "sprite_vertcolor.frag");
+	spriteBatch.shader->EnableUniforms(SHADER_MAIN_TEX);
+	spriteBatch.sheet = &spriteSheet;
+	spriteBatch.texture = spriteSheet.texture;
 
 	vec2 uiFrameSize = vec2(128);
-	testSheet = SpriteSheet("ui.png", {
+	testSheet = SpriteSheet(LoadTexture("ui.png"), {
 		{ "ui", SpriteSequence({
 			SpriteSequenceFrame(Edges::None(), Rect(vec2(0, 0), vec2(uiFrameSize.x, uiFrameSize.y))),
 			SpriteSequenceFrame(Edges::All(7), Rect(vec2(uiFrameSize.x, 0), vec2(uiFrameSize.x * 2.f, uiFrameSize.y))),
 		})}
 	});
 
-	testBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-		&testSheet);
+	testBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	testBatch.shader = LoadShader("world_vertcolor.vert", "sprite_vertcolor.frag");
+	testBatch.shader->EnableUniforms(SHADER_MAIN_TEX);
+	testBatch.sheet = &testSheet;
+	testBatch.texture = testSheet.texture;
 }
 
 void Update(float dt)
@@ -72,17 +76,27 @@ void Draw()
 #endif
 
 	//Draw sprites
-	spriteBatch.Clear();
+	spriteBatch.buffer->Clear();
 
-	spriteBatch.PushSprite(Sprite(vec3(-0.5, 0, 0.1f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
+		SetClearColor(vec4(0.5f + cos(GetTime()) * 0.2f, 0.5f, 0.5f + sin(GetTime()) * 0.2f, 1.f));
+
+
+
+	//spriteBatch.PushSprite(Sprite(vec3(-0.5, 0, 0.1f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	for (int i = 0; i < 10; i++)
 	{
-		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.15f);
-		globalRenderQueue.spriteSheet = &spriteSheet;
-		globalRenderQueue.PushSprite(Sprite(position, vec2(0.3), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
+		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.f);
+		//globalRenderQueue.spriteSheet = &spriteSheet;
+
+		Sprite sprite;
+		sprite.position = position;
+		sprite.size = vec2(0.3);
+		sprite.pivot = CENTER;
+		sprite.animator = &spriteAnim;
+		spriteBatch.PushSprite(sprite);
 	}
 
-	spriteBatch.PushSprite(Sprite(vec3(0.5, 0, 2.f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
+	//spriteBatch.PushSprite(Sprite(vec3(0.5, 0, 2.f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 
 	spriteBatch.Draw();
 }

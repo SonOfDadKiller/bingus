@@ -12,6 +12,7 @@ vec2 mousePrevPosition;
 vec3 mousePrevWorldPosition;
 
 std::string* inputString;
+float inputStringTimer;
 
 static std::vector<InputListener*> listeners;
 static std::vector<InputEvent> eventBuffer;
@@ -52,6 +53,7 @@ void CharacterCallback(GLFWwindow* window, u32 codepoint)
 	if (inputString != nullptr)
 	{
 		inputString->push_back(codepoint);
+		inputStringTimer = 0.f;
 	}
 }
 
@@ -66,6 +68,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
 			{
 				inputString->erase(inputString->end() - 1);
+				inputStringTimer = 0.f;
 			}
 			break;
 		case GLFW_RELEASE: event.state = RELEASE; break;
@@ -73,6 +76,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
 			{
 				inputString->erase(inputString->end() - 1);
+				inputStringTimer = 0.f;
 			}
 			else
 			{
@@ -282,5 +286,8 @@ void UpdateInput(GLFWwindow* window, float dt)
 	//Reset scroll state, as it should only be in either PRESS or UP state
 	keyStates[MOUSE_SCROLL_UP] = UP;
 	keyStates[MOUSE_SCROLL_DOWN] = UP;
+
+	//Update input string timer
+	inputStringTimer += dt;
 }
 

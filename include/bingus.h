@@ -122,7 +122,24 @@ float wrapMax(float x, float max);
 float wrapMinMax(float x, float min, float max);
 vec4 hsv(vec4 hsv);
 
-#ifndef OLD_RENDERER
+//Renderer
+void InitializeRenderer();
+
+extern struct RenderQueue globalRenderQueue;
+
+//Camera stuff
+extern mat4 cameraProjection;
+extern mat4 cameraView;
+extern mat4 cameraViewProjInverse;
+
+void SetCameraPosition(vec2 position, bool forceUpdateUBO = false);
+void SetCameraSize(float size, bool forceUpdateUBO = false);
+void TranslateCamera(vec2 translation);
+void ZoomCamera(float sizeChange);
+vec2 GetCameraPosition();
+float GetCameraSize();
+
+bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
 
 //Texture
 struct Texture
@@ -173,12 +190,24 @@ struct Vertex_PosColor
 {
 	vec3 position;
 	vec4 color;
+
+	Vertex_PosColor(vec3 position, vec4 color)
+	{
+		this->position = position;
+		this->color = color;
+	}
 };
 
 struct Vertex_PosUV
 {
 	vec3 position;
 	vec2 uv;
+
+	Vertex_PosUV(vec3 position, vec2 uv)
+	{
+		this->position = position;
+		this->uv = uv;
+	}
 };
 
 struct Vertex_PosUVColor
@@ -186,6 +215,13 @@ struct Vertex_PosUVColor
 	vec3 position;
 	vec2 uv;
 	vec4 color;
+
+	Vertex_PosUVColor(vec3 position, vec2 uv, vec4 color)
+	{
+		this->position = position;
+		this->uv = uv;
+		this->color = color;
+	}
 };
 
 struct VertBuffer
@@ -195,9 +231,15 @@ struct VertBuffer
 	std::vector<Vertex_PosColor> posColorVerts;
 	std::vector<Vertex_PosUV> posUVVerts;
 	std::vector<Vertex_PosUVColor> posUVColorVerts;
+	std::vector<u32> vertexIndices;
+	void* bufferData;
+	u32 vertexCount;
+	u32 vertexSize;
 	bool dirty; //Is true if vertices need to be sent to GPU
 
+	VertBuffer() : VertBuffer(POS_COLOR) { }
 	VertBuffer(VertexType vertexType);
+	void Clear();
 	void Destroy();
 };
 
@@ -258,51 +300,24 @@ struct SpriteAnimator
 
 struct Sprite
 {
-	vec4 color;
-	Edges nineSliceMargin;
-	vec3 position;
-	vec2 size;
-	vec2 pivot;
-	SpriteSequence* sequence;
-	SpriteAnimator* animator;
-	u32 sequenceFrame;
-	float rotation;
-
-	Sprite()
-	{
-		//Default values
-		color = vec4(1);
-		nineSliceMargin = Edges::None();
-		position = vec3(0);
-		size = vec2(0);
-		pivot = vec2(0);
-		sequence = nullptr;
-		animator = nullptr;
-		sequenceFrame = 0;
-		rotation = 0.f;
-	};
+	vec4 color = vec4(1);
+	Edges nineSliceMargin = Edges::None();
+	vec3 position = vec3(0);
+	vec2 size = vec2(0);
+	vec2 pivot = vec2(0);
+	SpriteSequence* sequence = nullptr;
+	SpriteAnimator* animator = nullptr;
+	u32 sequenceFrame = 0;
+	float rotation = 0.f;
 };
 
 struct RenderBatch
 {
-	VertBuffer buffer;
-	Shader shader;
-	Texture texture;
-
-	std::vector<float> vertexData;
-	std::vector<u32> indices;
+	VertBuffer* buffer;
+	Shader* shader;
+	Texture* texture;
 	u32 drawMode = GL_TRIANGLES;
-
-	bool initialized = false;
-	bool bufferDirty = false;
-
-	//RenderBatch() { }
 	
-	void LazyInit();
-	virtual void Init() { };
-	virtual void Clear();
-	void GrowVertexCapacity(size_t capacity); //TODO: Try and remove this function
-	void SendVertsToGPUBuffer();
 	void Draw();
 };
 
@@ -311,149 +326,10 @@ struct SpriteBatch : RenderBatch
 	SpriteSheet* sheet;
 
 	SpriteBatch() { }
-	SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet);
+	SpriteBatch(VertBuffer* vertBuffer, Shader* shader, SpriteSheet* spriteSheet);
 
-	void Init() override;
-	void Clear() override;
 	void PushSprite(const Sprite& sprite);
 	void PushSprite9Slice(const Sprite& sprite);
-	void PushSprites(const std::vector<Sprite*>& sprites);
-	void PushSprites(const std::vector<Sprite>& sprites);
-	void PushSpritesReverse(const std::vector<Sprite*>& sprites);
-	void PushSpritesReverse(const std::vector<Sprite>& sprites);
-};
-
-
-#endif
-
-
-
-#ifdef OLD_RENDERER
-
-//Texture
-//TODO: Implement proper resource loading system
-//TODO: Create texture type
-
-struct Texture
-{
-	u32 id;
-	vec2 size;
-
-	Texture() { }
-	Texture(u32 id, vec2 size); //This initializes a texture loaded manually
-	Texture(const char* filePath, i32 wrapMode = GL_REPEAT, i32 filter = GL_LINEAR_MIPMAP_LINEAR); // This loads a texture from disk
-};
-
-//Shader
-enum ShaderType { VERTEX, FRAGMENT };
-
-#define SHADER_COLOR		0x01
-#define SHADER_MAIN_TEX		0x02
-#define SHADER_SPEC_POW		0x04 
-
-struct Shader
-{
-	u32 id;
-	u32 uniforms;
-	std::unordered_map<u32, u32> uniformLocations;
-
-	Shader() { }
-	Shader(u32 vertShader, u32 fragShader);
-	Shader(u32 vertShader, u32 fragShader, u32 uniformMask);
-	Shader(const char* vertFilePath, const char* fragFilePath);
-	Shader(const char* vertFilePath, const char* fragFilePath, u32 uniformMask);
-
-	void EnableUniform(u32 uniformID, const char* uniformName);
-	void EnableUniforms(u32 uniformMask);
-	bool HasUniform(u32 uniform);
-
-	void SetUniformInt(u32 uniform, int i);
-	void SetUniformFloat(u32 uniform, float f);
-	void SetUniformVec2(u32 uniform, vec2 v2);
-	void SetUniformVec3(u32 uniform, vec3 v3);
-	void SetUniformVec4(u32 uniform, vec4 v4);
-};
-
-u32 LoadShader(ShaderType, const char* file_path); //Decide where this should go
-void SetActiveShader(Shader* shader);
-
-//Renderer
-#define TOP_LEFT		vec2(0.0, 1.0)
-#define TOP_CENTER		vec2(0.5, 1.0)
-#define TOP_RIGHT		vec2(1.0, 1.0)
-#define CENTER_LEFT		vec2(0.0, 0.5)
-#define CENTER			vec2(0.5, 0.5)
-#define CENTER_RIGHT	vec2(1.0, 0.5)
-#define BOTTOM_LEFT		vec2(0.0, 0.0)
-#define BOTTOM_CENTER	vec2(0.5, 0.0)
-#define BOTTOM_RIGHT	vec2(1.0, 0.0)
-
-struct SpriteSequenceFrame
-{
-	Edges nineSliceSample;
-	Rect rect;
-	SpriteSequenceFrame(Edges nineSliceSample, Rect rect)
-		: nineSliceSample(nineSliceSample), rect(rect) { }
-};
-
-struct SpriteSequence
-{
-	std::vector<SpriteSequenceFrame> frames;
-
-	SpriteSequence() { }
-	SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing);
-	SpriteSequence(std::vector<SpriteSequenceFrame> frames);
-};
-
-struct SpriteSheet
-{
-	Texture texture;
-	std::map<std::string, SpriteSequence> sequences;
-
-	SpriteSheet() { }
-	//TODO: Should these constructors take in a texture and expect the user to load it seperately?
-	//Perhaps having the option to do either would be best.
-	//TODO: Add interface for passing in an existing texture
-	SpriteSheet(const char* texturePath);
-	SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences);
-};
-
-struct SpriteAnimator
-{
-	SpriteSequence* sequence;
-	SpriteSheet* sheet;
-	Timer* timer;
-
-	SpriteAnimator() { }
-	SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, float speed);
-	u32 GetFrame();
-	void SetSequence(std::string name);
-};
-
-struct Sprite
-{
-	vec4 color;
-	Edges nineSliceMargin;
-	vec3 position;
-	vec2 size;
-	vec2 pivot;
-	SpriteSequence* sequence;
-	SpriteAnimator* animator;
-	u32 sequenceFrame;
-	float rotation;
-
-	Sprite() { };
-
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
-		: Sprite(position, size, pivot, rotation, Edges::None(), color, sequence, frame, nullptr) { }
-
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteSequence* sequence = nullptr, u32 frame = 0)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, sequence, frame, nullptr) { }
-
-	Sprite(vec3 position, vec2 size, vec2 pivot = BOTTOM_LEFT, float rotation = 0.f, Edges nineSliceMargin = Edges::None(), vec4 color = vec4(1), SpriteAnimator* animator = nullptr)
-		: Sprite(position, size, pivot, rotation, nineSliceMargin, color, nullptr, 0, animator) { }
-
-	Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin, vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator);
 };
 
 struct FontCharacter
@@ -476,124 +352,33 @@ struct Font
 	std::map<i32, FontCharacter> characters;
 };
 
-//TODO: Implement proper resource loading system
-Font* LoadFont(const char* filePath, u32 pixelHeight);
-
-struct Fonts
-{
-	static Font* arial;
-	static Font* linuxLibertine;
-};
+Font* LoadFont(std::string filePath, u32 pixelHeight);
 
 struct TextRenderInfo
 {
-	vec2 caretOffsetInPixels;
+	vec2 caretOffset;
 	vec2 renderScale;
 	float lineHeightInPixels;
 };
 
 struct Text
 {
-	std::string data;
-	Font* font;
-	vec4 color;
-	vec3 position;
-	vec2 extents;
-	vec2 scale;
-	vec2 alignment;
-	float textSize;
-
-	Text() { }
-	Text(std::string data, vec3 position, vec2 extents, float textSize, Font* font)
-		: Text(data, position, extents, vec2(1), BOTTOM_LEFT, textSize, vec4(1), font) { }
-	Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font);
-};
-
-#define VERTEX_POS		0
-#define VERTEX_UV		1
-#define VERTEX_COLOR	2
-
-struct VertAttrib
-{
-	u32 attribute, componentCount, componentWidth, type, offset;
-
-	VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset);
-};
-
-struct VertBuffer
-{
-	GLuint vao, vbo, ebo;
-	std::vector<VertAttrib> attributes;
-	u32 vertexComponentCount;
-	u32 vertexByteWidth;
-
-	VertBuffer() { }
-	VertBuffer(const std::vector<u32> attributes);
-
-	VertAttrib* GetAttribute(u32 attribute);
-	u32 GetAttributeOffset(u32 attribute);
-	void Destroy();
-};
-
-struct RenderBatch
-{
-	VertBuffer buffer;
-	Shader shader;
-	Texture texture;
-
-	std::vector<float> vertexData;
-	std::vector<u32> indices;
-	u32 drawMode = GL_TRIANGLES;
-
-	size_t vertexCount = 0;
-	size_t vertexCapacity = 0;
-
-	bool initialized = false;
-	bool bufferDirty = false;
-
-	RenderBatch() { }
-	
-	void LazyInit();
-	virtual void Init() { };
-	virtual void Clear();
-	void GrowVertexCapacity(size_t capacity); //TODO: Try and remove this function
-	void SendVertsToGPUBuffer();
-	void Draw();
-};
-
-struct SpriteBatch : RenderBatch
-{
-	SpriteSheet* sheet;
-	VertAttrib* positionAttrib;
-	VertAttrib* uvAttrib;
-	VertAttrib* colorAttrib;
-
-	SpriteBatch() { }
-	SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet);
-
-	void Init() override;
-	void Clear() override;
-	void PushSprite(const Sprite& sprite);
-	void PushSprite9Slice(const Sprite& sprite);
-	void PushSprites(const std::vector<Sprite*>& sprites);
-	void PushSprites(const std::vector<Sprite>& sprites);
-	void PushSpritesReverse(const std::vector<Sprite*>& sprites);
-	void PushSpritesReverse(const std::vector<Sprite>& sprites);
+	std::string data = "";
+	Font* font = nullptr;
+	vec4 color = vec4(1);
+	vec3 position = vec3(0);
+	vec2 extents = vec2(1, 0);
+	vec2 scale = vec2(1);
+	vec2 alignment = vec2(0);
+	float textSize = 1.f;
 };
 
 struct TextBatch : RenderBatch
 {
 	Font* font;
-	VertAttrib* positionAttrib;
-	VertAttrib* uvAttrib;
-	VertAttrib* colorAttrib;
-	//u32 glyphIndex = 0;
 
 	TextBatch() { }
-	TextBatch(VertBuffer buffer, Shader shader, Font* font);
-
-	void Init() override;
-	void Clear() override;
+	TextBatch(VertBuffer* buffer, Shader* shader, Font* font);
 
 	void PushText(const Text& text);
 	void PushText(const Text& text, TextRenderInfo& info);
@@ -606,6 +391,7 @@ struct RenderQueue
 	std::vector<SpriteBatch> spriteBatches;
 	u32 currentSpriteBatchIndex;
 	std::vector<TextBatch> textBatches;
+
 	u32 currentTextBatchIndex;
 
 	struct Step
@@ -619,40 +405,22 @@ struct RenderQueue
 	std::vector<Step> steps;
 	u32 stepIndex;
 
-	VertBuffer buffer;
-	Shader spriteShader;
-	Shader textShader;
+	//VertBuffer* buffer;
+	Shader* spriteShader;
+	Shader* textShader;
 	SpriteSheet* spriteSheet;
 	Font* font;
 
+	RenderQueue() { }
+	
 	void Clear();
-	void PushStep();
-	void PushStep(void(*preDraw)(), void(*postDraw)());
+	void AddStep();
+	void AddStep(void(*preDraw)(), void(*postDraw)());
 	void PushSprite(const Sprite& sprite);
 	void PushText(const Text& text);
 	void PushText(const Text& text, TextRenderInfo& info);
 	void Draw();
 };
-
-void InitializeRenderer();
-
-extern RenderQueue globalRenderQueue;
-
-//Camera stuff
-extern mat4 cameraProjection;
-extern mat4 cameraView;
-extern mat4 cameraViewProjInverse;
-
-void SetCameraPosition(vec2 position, bool forceUpdateUBO = false);
-void SetCameraSize(float size, bool forceUpdateUBO = false);
-void TranslateCamera(vec2 translation);
-void ZoomCamera(float sizeChange);
-vec2 GetCameraPosition();
-float GetCameraSize();
-
-bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
-
-#endif
 
 //Entity
 struct Entity
@@ -818,6 +586,7 @@ struct InputListener
 
 extern InputListener globalInputListener;
 extern std::string* inputString;
+extern float inputStringTimer;
 
 extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;

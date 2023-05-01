@@ -29,20 +29,31 @@ void Start()
 	});
 
 	//Set up batches
-	dynamicBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
-		Fonts::linuxLibertine);
 
-	staticBatch = TextBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX),
-		Fonts::arial);
+	dynamicBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	dynamicBatch.shader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
+	dynamicBatch.font = LoadFont("linux_libertine.ttf", 80);
+	dynamicBatch.texture = &dynamicBatch.font->texture;
+
+	staticBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	staticBatch.shader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
+	staticBatch.font = LoadFont("arial.ttf", 80);
+	staticBatch.texture = &staticBatch.font->texture;
 
 	for (i32 i = 0; i < 10; i++)
 	{
 		float y = -0.9f + (float)i * 0.195f;
 		float x = i % 2 == 0 ? -3.f : -2.8f;
-		staticBatch.PushText(Text("this text is static this text is static this text is static this text is static",
-			vec3(x, -0.03f + y, 0.f), vec2(6, 0.2f), vec2(0.5), BOTTOM_CENTER, 4.f, vec4(0.2, 0.2, 0.2, 1.0), Fonts::arial));
+
+		Text text;
+		text.data = "this text is static this text is static this text is static this text is static";
+		text.position = vec3(x, -0.03f + y, 0.f);
+		text.extents = vec2(6, 0.2f);
+		text.alignment = BOTTOM_CENTER;
+		text.textSize = 0.2f;
+		text.color = vec4(0.2, 0.2, 0.2, 1.0);
+		text.font = LoadFont("arial.ttf", 80);
+		staticBatch.PushText(text);
 	}
 }
 
@@ -55,8 +66,8 @@ void Update(float dt)
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
 		gui::vars.margin = Edges::All(25);
 		gui::vars.size = vec2(0);
+		gui::vars.textHeightInPixels = 35.f;
 	gui::EndNode();
-
 }
 
 void Draw()
@@ -65,23 +76,22 @@ void Draw()
 	ZoneScoped;
 #endif
 
-	dynamicBatch.Clear();
+	dynamicBatch.buffer->Clear();
 
-	vec4 color = vec4(0.7f + sin(GetTime() * 0.5f) * 0.3f, 0.7f + cos(GetTime() * 1.f) * 0.3f, 0.7f + cos(GetTime() * 2.f) * 0.3f, 1.f);
+	vec4 color = vec4(0.7f + sin(GetTime() * 0.5f) * 0.3f,
+					  0.7f + cos(GetTime() * 1.f) * 0.3f,
+					  0.7f + cos(GetTime() * 2.f) * 0.3f,
+					  1.f);
 
-	vec2 textPos = vec2(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f);
-	vec2 textExtents = vec2(1, 0.5f);
-
-	dynamicBatch.PushText(Text("this text is dynamic",
-		vec3(textPos, 0),					//position
-		textExtents,						//extents
-		vec2(1.f),							//scale
-		CENTER,								//alignment
-		0.5f,								//text size
-		color,								//color
-		Fonts::linuxLibertine));			//font
-
-	DrawDebugAABB(DEBUG_WORLD, AABB(textPos, textPos + textExtents), vec4(1.f), false);
+	Text text;
+	text.data = "This text is dynamic!";
+	text.position = vec3(-1.f + sin(GetTime() * 0.5f) * 0.8, sin(GetTime()) * 0.6f, 0.f);
+	text.extents = vec2(2, 0.f);
+	text.alignment = CENTER;
+	text.textSize = 0.2f;
+	text.color = color;
+	text.font = LoadFont("linux_libertine.ttf", 80);
+	dynamicBatch.PushText(text);
 
 	staticBatch.Draw();
 	dynamicBatch.Draw();

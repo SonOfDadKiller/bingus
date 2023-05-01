@@ -56,16 +56,18 @@ int main()
 void Start()
 {
 	//Control Window
-	controlWindow.pos = vec2(25, 25);
+	controlWindow.pos = vec2(25, 80);
 	controlWindow.minSize = vec2(500, 600);
 	controlWindow.maxSize = controlWindow.minSize;
 
 	//Set up sprite batch
-	spriteSheet = SpriteSheet("triangle.png", { { "triangle", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
+	spriteSheet = SpriteSheet(LoadTexture("triangle.png"), { { "triangle", SpriteSequence(vec2(0), vec2(128, 128), 4, 0.f) } });
 
-	spriteBatch = SpriteBatch(VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR }),
-		Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX),
-		&spriteSheet);
+	spriteBatch.buffer = new VertBuffer(POS_UV_COLOR);
+	spriteBatch.shader = LoadShader("world_vertcolor.vert", "sprite_vertcolor.frag");
+	spriteBatch.shader->EnableUniforms(SHADER_MAIN_TEX);
+	spriteBatch.sheet = &spriteSheet;
+	spriteBatch.texture = spriteSheet.texture;
 
 	SetCameraSize(7.f);
 
@@ -276,6 +278,7 @@ void Update(float dt)
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + stream.str() + "ms)");
 		gui::vars.margin = Edges::All(25);
 		gui::vars.size = vec2(0);
+		gui::vars.textHeightInPixels = 36.f;
 	gui::EndNode();
 
 	//Logic
@@ -285,7 +288,7 @@ void Update(float dt)
 void Draw()
 {
 	//Draw sprites
-	spriteBatch.Clear();
+	spriteBatch.buffer->Clear();
 
 	for (auto it = boids.begin(); it != boids.end(); it++)
 	{
@@ -293,8 +296,19 @@ void Draw()
 		vec3 pos = vec3(pos2.x, pos2.y, 0.f);
 		vec2 mixVelocity = glm::mix(it->oldVelocity, it->velocity, GetTimestepAlpha());
 		float rotation = glm::degrees(atan2(mixVelocity.y, mixVelocity.x)) + 270.f;
-		spriteBatch.PushSprite(Sprite(pos, it->size, CENTER, rotation, Edges::None(), 
-			it->color, &spriteSheet.sequences["triangle"], 0));
+
+		Sprite sprite;
+		sprite.position = pos;
+		sprite.size = it->size;
+		sprite.pivot = CENTER;
+		sprite.rotation = rotation;
+		sprite.color = it->color;
+		sprite.sequence = &spriteSheet.sequences["triangle"];
+		spriteBatch.PushSprite(sprite);
+
+
+		/*spriteBatch.PushSprite(Sprite(pos, it->size, CENTER, rotation, Edges::None(), 
+			it->color, &spriteSheet.sequences["triangle"], 0));*/
 	}
 
 	spriteBatch.Draw();
