@@ -18,6 +18,7 @@ SET(BINGUS_SOURCE
 	"src/entity.cpp"
 	"src/debug.cpp"
 	"src/collision.cpp"
+	"src/resource.cpp"
 )
 
 SET(BINGUS_HEADERS

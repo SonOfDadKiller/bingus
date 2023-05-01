@@ -2,12 +2,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#define STB_RECT_PACK_IMPLEMENTATION
-#include <stb_rect_pack.h>
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include <stb_truetype.h>
-
 #include <string>
 #include <iostream>
 #include <map>
@@ -15,7 +9,6 @@
 
 RenderQueue globalRenderQueue;
 
-//TODO: Pull sprite ownership out of renderer
 static vec2 cameraPosition = vec2(-1, -1);
 static float cameraSize;
 static u32 cameraUBO;
@@ -23,9 +16,6 @@ mat4 cameraProjection;
 mat4 cameraView;
 mat4 cameraViewProjInverse;
 
-static const char* fontPath = "../res/fonts/";
-Font* Fonts::arial = nullptr;
-Font* Fonts::linuxLibertine = nullptr;
 void DebugPrintFontData(Font* font);
 
 void InitializeRenderer()
@@ -47,17 +37,177 @@ void InitializeRenderer()
 	SetCameraPosition(vec2(0));
 	SetCameraSize(2);
 
-	//Load fonts
-	Fonts::arial = LoadFont("arial.ttf", 80);
-	Fonts::linuxLibertine = LoadFont("linux_libertine.ttf", 80);
+	//Load engine fonts
+	LoadFont("arial.ttf", 80);
+	LoadFont("linux_libertine.ttf", 80);
+
+	//TODO: Load other enegine resources as above?
 
 	//Initialize global render queue
-	globalRenderQueue.buffer = VertBuffer({ VERTEX_POS, VERTEX_UV, VERTEX_COLOR });
-	globalRenderQueue.spriteShader = Shader("world_vertcolor.vert", "sprite_vertcolor.frag", SHADER_MAIN_TEX);
-	globalRenderQueue.textShader = Shader("world_vertcolor.vert", "text_vertcolor.frag", SHADER_MAIN_TEX);
+	//globalRenderQueue.buffer = new VertBuffer(POS_UV_COLOR);
+	globalRenderQueue.spriteShader = LoadShader("world_vertcolor.vert", "sprite_vertcolor.frag");
+	globalRenderQueue.spriteShader->EnableUniforms(SHADER_MAIN_TEX);
+	globalRenderQueue.textShader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
+	globalRenderQueue.textShader->EnableUniforms(SHADER_MAIN_TEX);
 	globalRenderQueue.spriteSheet = &defaultGuiSpritesheet; //TODO: Change this?
-	globalRenderQueue.font = Fonts::arial;
+	globalRenderQueue.font = LoadFont("arial.ttf", 80);
 }
+
+// .d88888b  dP                      dP                   
+// 88.    "' 88                      88                   
+// `Y88888b. 88d888b. .d8888b. .d888b88 .d8888b. 88d888b. 
+//       `8b 88'  `88 88'  `88 88'  `88 88ooood8 88'  `88 
+// d8'   .8P 88    88 88.  .88 88.  .88 88.  ... 88       
+//  Y88888P  dP    dP `88888P8 `88888P8 `88888P' dP
+
+u32 activeShaderID;
+
+void SetActiveShader(Shader* shader)
+{
+	assert(shader != nullptr);
+
+	if (shader->id != activeShaderID)
+	{
+		glUseProgram(shader->id);
+		activeShaderID = shader->id;
+	}
+}
+
+// dP     dP                     dP                     
+// 88     88                     88                     
+// 88    .8P .d8888b. 88d888b. d8888P .d8888b. dP.  .dP 
+// 88    d8' 88ooood8 88'  `88   88   88ooood8  `8bd8'  
+// 88  .d8P  88.  ... 88         88   88.  ...  .d88b.  
+// 888888'   `88888P' dP         dP   `88888P' dP'  `dP
+
+VertBuffer::VertBuffer(VertexType vertexType)
+{
+	this->vertexType = vertexType;
+	vertexCount = 0;
+
+	//Generate and bind buffers
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(this->vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glGenBuffers(1, &ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+	//Set up vertex attributes
+	if (vertexType == POS_COLOR)
+	{
+		vertexSize = sizeof(vec3) + sizeof(vec4);
+		bufferData = posColorVerts.data();
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)0);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)sizeof(vec3));
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+	}
+	else if (vertexType == POS_UV)
+	{
+		vertexSize = sizeof(vec3) + sizeof(vec2);
+		bufferData = posUVVerts.data();
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)sizeof(vec3));
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+	}
+	else if (vertexType == POS_UV_COLOR)
+	{
+		vertexSize = sizeof(vec3) + sizeof(vec2) + sizeof(vec4);
+		bufferData = posUVColorVerts.data();
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)sizeof(vec3));
+		glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)(sizeof(vec3) + sizeof(vec2)));
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		glEnableVertexAttribArray(2);
+	}
+
+	//Unbind
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void VertBuffer::Clear()
+{
+	posColorVerts.clear();
+	posUVVerts.clear();
+	posUVColorVerts.clear();
+	vertexIndices.clear();
+	dirty = true;
+	vertexCount = 0;
+}
+
+void VertBuffer::Destroy()
+{
+	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &ebo);
+	glDeleteVertexArrays(1, &vao);
+}
+
+//  888888ba             dP            dP      
+//  88    `8b            88            88      
+//  88aaaa8P' .d8888b. d8888P .d8888b. 88d888b.
+//  88   `8b. 88'  `88   88   88'  `"" 88'  `88
+//  88    .88 88.  .88   88   88.  ... 88    88
+//  88888888P `88888P8   dP   `88888P' dP    dP
+
+void RenderBatch::Draw()
+{
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
+	if (buffer->vertexCount == 0) return;
+
+	SetActiveShader(shader);
+	glBindVertexArray(buffer->vao);
+
+	//Pass verts if necessary
+	if (buffer->dirty)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, buffer->vbo);
+
+		void* bufferData;
+		if (buffer->vertexType == POS_COLOR)
+		{
+			bufferData = buffer->posColorVerts.data();
+		}
+		else if (buffer->vertexType == POS_UV)
+		{
+			bufferData = buffer->posUVVerts.data();
+		}
+		else if (buffer->vertexType == POS_UV_COLOR)
+		{
+			bufferData = buffer->posUVColorVerts.data();
+		}
+	
+		glBufferData(GL_ARRAY_BUFFER, buffer->vertexCount * buffer->vertexSize, bufferData, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer->vertexIndices.size() * sizeof(u32), buffer->vertexIndices.data(), GL_DYNAMIC_DRAW);
+		buffer->dirty = false;
+	}
+
+	if (shader->HasUniform(SHADER_MAIN_TEX))
+	{
+		//Pass texture
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture->id);
+		shader->SetUniformInt(SHADER_MAIN_TEX, 0);
+	}
+
+	glDrawElements(drawMode, (GLsizei)buffer->vertexIndices.size(), GL_UNSIGNED_INT, 0);
+}
+
+// .d88888b                    oo   dP            
+// 88.    "'                        88            
+// `Y88888b. 88d888b. 88d888b. dP d8888P .d8888b. 
+//       `8b 88'  `88 88'  `88 88   88   88ooood8 
+// d8'   .8P 88.  .88 88       88   88   88.  ... 
+//  Y88888P  88Y888P' dP       dP   dP   `88888P' 
+//           88                                   
+//           dP
 
 SpriteSequence::SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 count, float spacing)
 {
@@ -76,14 +226,14 @@ SpriteSequence::SpriteSequence(std::vector<SpriteSequenceFrame> frames)
 	this->frames = frames;
 }
 
-SpriteSheet::SpriteSheet(const char* texturePath)
+SpriteSheet::SpriteSheet(Texture* texture)
 {
-	texture = Texture(texturePath, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	this->texture = texture;
 }
 
-SpriteSheet::SpriteSheet(const char* texturePath, std::map<std::string, SpriteSequence> sequences)
+SpriteSheet::SpriteSheet(Texture* texture, std::map<std::string, SpriteSequence> sequences)
 {
-	texture = Texture(texturePath, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	this->texture = texture;
 	this->sequences = sequences;
 }
 
@@ -106,203 +256,12 @@ void SpriteAnimator::SetSequence(std::string name)
 	this->timer->Reset();
 }
 
-Sprite::Sprite(vec3 position, vec2 size, vec2 pivot, float rotation, Edges nineSliceMargin,
-	vec4 color, SpriteSequence* sequence, u32 frame, SpriteAnimator* animator)
-{
-	this->position = position;
-	this->size = size;
-	this->pivot = pivot;
-	this->nineSliceMargin = nineSliceMargin;
-	this->rotation = rotation;
-	this->color = color;
-	this->sequence = sequence;
-	this->sequenceFrame = frame;
-	this->animator = animator;
-}
-
-Text::Text(std::string data, vec3 position, vec2 extents, vec2 scale, vec2 alignment, float textSize, vec4 color, Font* font)
-{
-	this->data = data;
-	this->position = position;
-	this->extents = extents;
-	this->scale = scale;
-	this->alignment = alignment;
-	this->textSize = textSize;
-	this->color = color;
-	this->font = font;
-}
-
-VertAttrib::VertAttrib(u32 attribute, u32 componentCount, u32 componentWidth, u32 type, u32 offset)
-{
-	this->attribute = attribute;
-	this->componentCount = componentCount;
-	this->componentWidth = componentWidth;
-	this->type = type;
-	this->offset = offset;
-}
-
-VertBuffer::VertBuffer(const std::vector<u32> attributes)
-{
-	//Generate attributes
-	u32 totalComponentCount = 0;
-	for (u32 i = 0; i < attributes.size(); i++)
-	{
-		u32 componentCount = 0;
-
-		switch (attributes[i])
-		{
-		case VERTEX_POS: componentCount = 3; break;
-		case VERTEX_UV: componentCount = 2; break;
-		case VERTEX_COLOR: componentCount = 4; break;
-		}
-
-		this->attributes.push_back(VertAttrib(attributes[i], componentCount, sizeof(float),
-			GL_FLOAT, totalComponentCount * sizeof(float)));
-		totalComponentCount += componentCount;
-	}
-
-	//Generate and bind buffers
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glGenBuffers(1, &ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-
-	//Set up vertex attributes
-	vertexComponentCount = 0;
-	vertexByteWidth = 0;
-
-	for (auto it = this->attributes.begin(); it != this->attributes.end(); it++)
-	{
-		vertexComponentCount += it->componentCount;
-		vertexByteWidth += it->componentCount * it->componentWidth;
-	}
-
-	u32 i = 0;
-	for (auto it = this->attributes.begin(); it != this->attributes.end(); it++)
-	{
-		glVertexAttribPointer(i, it->componentCount, it->type, GL_FALSE, vertexByteWidth, (void*)it->offset);
-		glEnableVertexAttribArray(i);
-		i++;
-	}
-
-	//Unbind
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
-VertAttrib* VertBuffer::GetAttribute(u32 attribute)
-{
-	for (auto it = attributes.begin(); it != attributes.end(); it++)
-	{
-		if (it->attribute == attribute) return &(*it);
-	}
-
-	return nullptr;
-}
-
-u32 VertBuffer::GetAttributeOffset(u32 attribute)
-{
-	VertAttrib* attrib = GetAttribute(attribute);
-	if (attrib == nullptr) return 0; //TODO: Implement better error return code
-	return attrib->offset;
-}
-
-void VertBuffer::Destroy()
-{
-	glDeleteBuffers(1, &vbo);
-	glDeleteBuffers(1, &ebo);
-	glDeleteVertexArrays(1, &vao);
-
-	attributes.clear();
-	vertexComponentCount = 0;
-	vertexByteWidth = 0;
-}
-
-void RenderBatch::LazyInit()
-{
-	//if (!initialized) Init();
-	//initialized = true;
-	Init();
-}
-
-void RenderBatch::GrowVertexCapacity(size_t capacity)
-{
-	if (capacity > vertexCapacity)
-	{
-		vertexCapacity = capacity;
-		vertexData.resize(capacity * buffer.vertexComponentCount);
-	}
-}
-
-void RenderBatch::Clear()
-{
-	vertexCount = 0;
-	vertexCapacity = 0;
-	vertexData.clear();
-	indices.clear();
-	bufferDirty = true;
-}
-
-void RenderBatch::SendVertsToGPUBuffer()
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-	glBindBuffer(GL_ARRAY_BUFFER, buffer.vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_DYNAMIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32), indices.data(), GL_DYNAMIC_DRAW);
-	bufferDirty = false;
-}
-
-void RenderBatch::Draw()
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	if (vertexCount == 0) return;
-
-	SetActiveShader(&shader);
-	glBindVertexArray(buffer.vao);
-
-	//Pass verts if necessary
-	if (bufferDirty) SendVertsToGPUBuffer();
-
-	if (shader.HasUniform(SHADER_MAIN_TEX))
-	{
-		//Pass texture
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture.id);
-		shader.SetUniformInt(SHADER_MAIN_TEX, 0);
-	}
-
-	glDrawElements(drawMode, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
-}
-
-SpriteBatch::SpriteBatch(VertBuffer vertBuffer, Shader shader, SpriteSheet* spriteSheet)
+SpriteBatch::SpriteBatch(VertBuffer* vertBuffer, Shader* shader, SpriteSheet* spriteSheet)
 {
 	this->buffer = vertBuffer;
 	this->shader = shader;
 	this->sheet = spriteSheet;
 	this->texture = spriteSheet->texture;
-}
-
-void SpriteBatch::Init()
-{
-	//Get vertex attribute offsets
-	positionAttrib = buffer.GetAttribute(VERTEX_POS);
-	uvAttrib = buffer.GetAttribute(VERTEX_UV);
-	colorAttrib = buffer.GetAttribute(VERTEX_COLOR);
-
-	assert(positionAttrib != nullptr); //Position is required
-}
-
-void SpriteBatch::Clear()
-{
-	RenderBatch::Clear();
 }
 
 void SpriteBatch::PushSprite(const Sprite& sprite)
@@ -311,9 +270,9 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	ZoneScoped;
 #endif
 
-	LazyInit();
-	bufferDirty = true;
-
+	buffer->dirty = true;
+	
+	//Switch to 9 Slice function if the margin is not zero
 	if (sprite.nineSliceMargin.top != 0.f && sprite.nineSliceMargin.right != 0.f
 		&& sprite.nineSliceMargin.bottom != 0.f && sprite.nineSliceMargin.left != 0.f)
 	{
@@ -321,7 +280,7 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 		return;
 	}
 
-	//Vertices
+	//Positions are calculated for each vertex type
 	vec3 cornerPositions[] = {
 		vec3(0.f, 0.f, 0),
 		vec3(0.f, sprite.size.y, 0),
@@ -354,27 +313,22 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 	cornerPositions[2] += sprite.position;
 	cornerPositions[3] += sprite.position;
 
-	//Push sprite data
-	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
-	for (u32 vert = 0; vert < 4 * buffer.vertexComponentCount; vert++) vertexData.push_back(0.f);
-
-	u32 baseOffset = vertexCount * buffer.vertexComponentCount;
-
-	for (u32 vert = 0; vert < 4; vert++)
+	//Here we switch on different vertex types
+	if (buffer->vertexType == POS_COLOR)
 	{
-		u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-		
-		//Position
-		u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
-		memcpy(vertexData.data() + positionOffset, &cornerPositions[vert], sizeof(vec3));
+		//POS_COLOR can just push the positions which are already calculated, and get the color from the sprite
+		for (int i = 0; i < 4; i++)
+		{
+			buffer->posColorVerts.push_back({ cornerPositions[i], sprite.color });
+		}
 	}
-
-	if (uvAttrib != nullptr)
+	else if (buffer->vertexType == POS_UV || buffer->vertexType == POS_UV_COLOR)
 	{
-		//Get sequence from animator, or fall back to sprite.sequence and sprite.frame
+		//POS_UV needs to get the spritesheet data. 
 		SpriteSequence* sequence = nullptr;
 		u32 frame;
 
+		//Prefer using animator over sequence if it is set
 		if (sprite.animator != nullptr)
 		{
 			sequence = sprite.animator->sequence;
@@ -393,8 +347,8 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 		if (sequence != nullptr)
 		{
 			Rect frameRect = sequence->frames[frame].rect;
-			uvMin = frameRect.min / texture.size;
-			uvMax = frameRect.max / texture.size;
+			uvMin = frameRect.min / texture->size;
+			uvMax = frameRect.max / texture->size;
 		}
 
 		vec2 cornerUVs[] = {
@@ -404,34 +358,32 @@ void SpriteBatch::PushSprite(const Sprite& sprite)
 			vec2(uvMax.x, uvMin.y)
 		};
 
-		for (u32 vert = 0; vert < 4; vert++)
+		//Switch on vertex type again to optionally insert color
+		if (buffer->vertexType == POS_UV_COLOR)
 		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
-			memcpy(vertexData.data() + uvOffset, &cornerUVs[vert], sizeof(vec2));
+			for (int i = 0; i < 4; i++)
+			{
+				buffer->posUVColorVerts.push_back({ cornerPositions[i], cornerUVs[i], sprite.color });
+			}
 		}
-	}
-
-	if (colorAttrib != nullptr)
-	{
-		for (u32 vert = 0; vert < 4; vert++)
+		else
 		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-			u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
-			memcpy(vertexData.data() + colorOffset, &sprite.color, sizeof(vec4));
+			for (int i = 0; i < 4; i++)
+			{
+				buffer->posUVVerts.push_back({ cornerPositions[i], cornerUVs[i] });
+			}
 		}
 	}
 
 	//Indices
-	indices.push_back(vertexCount);
-	indices.push_back(vertexCount + 1);
-	indices.push_back(vertexCount + 2);
-	indices.push_back(vertexCount + 2);
-	indices.push_back(vertexCount + 3);
-	indices.push_back(vertexCount);
+	buffer->vertexIndices.push_back(buffer->vertexCount);
+	buffer->vertexIndices.push_back(buffer->vertexCount + 1);
+	buffer->vertexIndices.push_back(buffer->vertexCount + 2);
+	buffer->vertexIndices.push_back(buffer->vertexCount + 2);
+	buffer->vertexIndices.push_back(buffer->vertexCount + 3);
+	buffer->vertexIndices.push_back(buffer->vertexCount);
 
-	//Update vertex count, this is kinda important
-	vertexCount += 4;
+	buffer->vertexCount += 4; //This is kinda important
 }
 
 void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
@@ -440,7 +392,14 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 	ZoneScoped;
 #endif
 
-	bufferDirty = true;
+	 //UV channel is required for 9 slice sprites
+	assert(buffer->vertexType != POS_COLOR);
+
+	//We should only come here from PushSprite()
+	assert(sprite.nineSliceMargin.top != 0.f && sprite.nineSliceMargin.right != 0.f
+		&& sprite.nineSliceMargin.bottom != 0.f && sprite.nineSliceMargin.left != 0.f); 
+
+	buffer->dirty = true;
 
 	//Get frame early, so we can use the 9 slice data
 	SpriteSequence* sequence = nullptr;
@@ -500,76 +459,54 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 
 	for (u32 vert = 0; vert < 16; vert++) vertPositions[vert] += sprite.position;
 
-	//Push sprite data
-	//Push 4 empty verts onto the buffer, this is so we can use memcpy below.
-	for (u32 vert = 0; vert < 16 * buffer.vertexComponentCount; vert++) vertexData.push_back(0.f);
+	//Calculate UVs
+	vec2 uvMin = vec2(0);
+	vec2 uvMax = vec2(1);
+	Edges scaledUVEdges = Edges(frame->nineSliceSample.top / texture->size.y,
+								frame->nineSliceSample.right / texture->size.x,
+								frame->nineSliceSample.bottom / texture->size.y,
+								frame->nineSliceSample.left / texture->size.x);
 
-	u32 baseOffset = vertexCount * buffer.vertexComponentCount;
-
-	for (u32 vert = 0; vert < 16; vert++)
+	if (frame != nullptr)
 	{
-		u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-
-		//Position
-		u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
-		memcpy(vertexData.data() + positionOffset, &vertPositions[vert], sizeof(vec3));
+		uvMin = frame->rect.min / texture->size;
+		uvMax = frame->rect.max / texture->size;
 	}
 
-	//NOTE: UVs should probably be non-optional, as theres no point not having them when using a 9 slice
+	//First row
+	vec2 vertUVs[16];
+	vertUVs[0] = uvMin;
+	vertUVs[1] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y);
+	vertUVs[2] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y);
+	vertUVs[3] = vec2(uvMax.x, uvMin.y);
+	//Second row
+	vertUVs[4] = vec2(uvMin.x, uvMin.y + scaledUVEdges.top);
+	vertUVs[5] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y + scaledUVEdges.top);
+	vertUVs[6] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y + scaledUVEdges.top);
+	vertUVs[7] = vec2(uvMax.x, uvMin.y + scaledUVEdges.top);
+	//Third row
+	vertUVs[8] = vec2(uvMin.x, uvMax.y - scaledUVEdges.bottom);
+	vertUVs[9] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y - scaledUVEdges.bottom);
+	vertUVs[10] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y - scaledUVEdges.bottom);
+	vertUVs[11] = vec2(uvMax.x, uvMax.y - scaledUVEdges.bottom);
+	//Fourth row
+	vertUVs[12] = vec2(uvMin.x, uvMax.y);
+	vertUVs[13] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y);
+	vertUVs[14] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y);
+	vertUVs[15] = uvMax;
 
-	if (uvAttrib != nullptr)
+	if (buffer->vertexType == POS_UV_COLOR)
 	{
-		//Calculate UVs
-		vec2 uvMin = vec2(0);
-		vec2 uvMax = vec2(1);
-		Edges scaledUVEdges = Edges(frame->nineSliceSample.top / texture.size.y,
-									frame->nineSliceSample.right / texture.size.x,
-									frame->nineSliceSample.bottom / texture.size.y,
-									frame->nineSliceSample.left / texture.size.x);
-
-		if (frame != nullptr)
+		for (int i = 0; i < 16; i++)
 		{
-			uvMin = frame->rect.min / texture.size;
-			uvMax = frame->rect.max / texture.size;
-		}
-
-		//First row
-		vec2 vertUVs[16];
-		vertUVs[0] = uvMin;
-		vertUVs[1] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y);
-		vertUVs[2] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y);
-		vertUVs[3] = vec2(uvMax.x, uvMin.y);
-		//Second row
-		vertUVs[4] = vec2(uvMin.x, uvMin.y + scaledUVEdges.top);
-		vertUVs[5] = vec2(uvMin.x + scaledUVEdges.left, uvMin.y + scaledUVEdges.top);
-		vertUVs[6] = vec2(uvMax.x - scaledUVEdges.right, uvMin.y + scaledUVEdges.top);
-		vertUVs[7] = vec2(uvMax.x, uvMin.y + scaledUVEdges.top);
-		//Third row
-		vertUVs[8] = vec2(uvMin.x, uvMax.y - scaledUVEdges.bottom);
-		vertUVs[9] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y - scaledUVEdges.bottom);
-		vertUVs[10] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y - scaledUVEdges.bottom);
-		vertUVs[11] = vec2(uvMax.x, uvMax.y - scaledUVEdges.bottom);
-		//Fourth row
-		vertUVs[12] = vec2(uvMin.x, uvMax.y);
-		vertUVs[13] = vec2(uvMin.x + scaledUVEdges.left, uvMax.y);
-		vertUVs[14] = vec2(uvMax.x - scaledUVEdges.right, uvMax.y);
-		vertUVs[15] = uvMax;
-
-		for (u32 vert = 0; vert < 16; vert++)
-		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
-			memcpy(vertexData.data() + uvOffset, &vertUVs[vert], sizeof(vec2));
+			buffer->posUVColorVerts.push_back({ vertPositions[i], vertUVs[i], sprite.color });
 		}
 	}
-
-	if (colorAttrib != nullptr)
+	else
 	{
-		for (u32 vert = 0; vert < 16; vert++)
+		for (int i = 0; i < 16; i++)
 		{
-			u32 vertOffset = baseOffset + vert * buffer.vertexComponentCount;
-			u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
-			memcpy(vertexData.data() + colorOffset, &sprite.color, sizeof(vec4));
+			buffer->posUVVerts.push_back({ vertPositions[i], vertUVs[i] });
 		}
 	}
 
@@ -578,87 +515,32 @@ void SpriteBatch::PushSprite9Slice(const Sprite& sprite)
 	{
 		for (size_t quadX = 0; quadX < 3; quadX++)
 		{
-			size_t offset = vertexCount + quadX + quadY * 4;
-			indices.push_back(offset);
-			indices.push_back(offset + 1);
-			indices.push_back(offset + 5);
-			indices.push_back(offset + 5);
-			indices.push_back(offset + 4);
-			indices.push_back(offset);
+			size_t offset = buffer->vertexCount + quadX + quadY * 4;
+			buffer->vertexIndices.push_back(offset);
+			buffer->vertexIndices.push_back(offset + 1);
+			buffer->vertexIndices.push_back(offset + 5);
+			buffer->vertexIndices.push_back(offset + 5);
+			buffer->vertexIndices.push_back(offset + 4);
+			buffer->vertexIndices.push_back(offset);
 		}
 	}
 
-	//Update vertex count, this is kinda important
-	vertexCount += 16;
+	buffer->vertexCount += 16; //This is kinda important
 }
 
-void SpriteBatch::PushSprites(const std::vector<Sprite*>& sprites)
-{
-	GrowVertexCapacity(vertexCount + sprites.size() * 4);
-	indices.reserve(indices.size() + sprites.size() * 6);
+// d888888P                     dP   
+//    88                        88   
+//    88    .d8888b. dP.  .dP d8888P 
+//    88    88ooood8  `8bd8'    88   
+//    88    88.  ...  .d88b.    88   
+//    dP    `88888P' dP'  `dP   dP
 
-	for (Sprite* sprite : sprites)
-	{
-		PushSprite(*sprite);
-	}
-}
-
-void SpriteBatch::PushSprites(const std::vector<Sprite>& sprites)
-{
-	GrowVertexCapacity(vertexCount + sprites.size() * 4);
-	indices.reserve(indices.size() + sprites.size() * 6);
-
-	for (const Sprite& sprite : sprites)
-	{
-		PushSprite(sprite);
-	}
-}
-
-void SpriteBatch::PushSpritesReverse(const std::vector<Sprite*>& sprites)
-{
-	GrowVertexCapacity(vertexCount + sprites.size() * 4);
-	indices.reserve(indices.size() + sprites.size() * 6);
-
-	for (auto it = sprites.rbegin(); it != sprites.rend(); it++)
-	{
-		PushSprite(**it);
-	}
-}
-
-void SpriteBatch::PushSpritesReverse(const std::vector<Sprite>& sprites)
-{
-	GrowVertexCapacity(vertexCount + sprites.size() * 4);
-	indices.reserve(indices.size() + sprites.size() * 6);
-
-	for (auto it = sprites.rbegin(); it != sprites.rend(); it++)
-	{
-		PushSprite(*it);
-	}
-}
-
-TextBatch::TextBatch(VertBuffer buffer, Shader shader, Font* font)
+TextBatch::TextBatch(VertBuffer* buffer, Shader* shader, Font* font)
 {
 	this->buffer = buffer;
 	this->shader = shader;
 	this->font = font;
-	this->texture = font->texture;
-}
-
-void TextBatch::Init()
-{
-	//Get vertex attribute offsets
-	positionAttrib = buffer.GetAttribute(VERTEX_POS);
-	uvAttrib = buffer.GetAttribute(VERTEX_UV);
-	colorAttrib = buffer.GetAttribute(VERTEX_COLOR);
-
-	//Required attributes
-	assert(positionAttrib != nullptr);
-	assert(uvAttrib != nullptr);
-}
-
-void TextBatch::Clear()
-{
-	RenderBatch::Clear();
+	this->texture = &font->texture;
 }
 
 void TextBatch::PushText(const Text& text)
@@ -672,32 +554,35 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 	ZoneScoped;
 #endif
 
+	//UV channel is required for text
+	assert(buffer->vertexType != POS_COLOR);
+
 	if (text.data == "") return;
 
-	LazyInit();
-	bufferDirty = true;
+	buffer->dirty = true;
 
-	float actualSize = text.textSize;
-	vec2 origin = vec2(0);
-
-	GrowVertexCapacity(vertexCount + text.data.size() * 4);
-	indices.reserve(indices.size() + text.data.size() * 6);
+	vec2 actualSize = text.scale * text.textSize;
+	vec2 origin = vec2(0); //Origin represents the rolling glyph position before it is scaled
 
 	//Create temporary array of rectangles, this is so we can replace things after the fact.
 	std::vector<FontCharacterRect> glyphRects;
 	glyphRects.reserve(text.data.size());
 
+	//TODO: Make extents y based on line height not glyph height
 	vec2 extents = vec2(0);
-	info.caretOffsetInPixels = vec2(0);
-	info.lineHeightInPixels = (float)text.font->lineHeight * text.textSize;
+	info.caretOffset = vec2(0);
+	info.lineHeightInPixels = text.textSize;
 	info.renderScale = actualSize * text.scale;
 
+	//First we loop through the characters and find their local coordinates, this is so
+	//we can calculate the extents of the rendered text to later shift the coordinates
+	//around the pivot point
 	for (auto it = text.data.begin(); it != text.data.end(); it++)
 	{
 		FontCharacter* glyph = &text.font->characters[*it];
 
-		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text.scale;
-		vec2 glyphSize = vec2(glyph->size) * actualSize * text.scale;
+		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize;
+		vec2 glyphSize = glyph->size * actualSize;
 
 		//TODO: Implement smarter new-lining that doesn't split words
 		bool newLine = false;
@@ -715,26 +600,19 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 		{
 			//Move origin to new line position
 			origin.x = 0.f;
-			origin.y -= (float)text.font->lineHeight;
-			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize * text.scale; //Copy of glyphpos calc above
-			
-			//info.caretOffsetInPixels.x = 0.f;
-			//info.caretOffsetInPixels.y -= (float)text.font->lineHeight * text.textSize;
+			origin.y -= 1.f;
+			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize; //Copy of glyphpos calc above
 		}
 
 		//Step extents
 		if (glyphPos.x + glyphSize.x > extents.x) extents.x = glyphPos.x + glyphSize.x;
 		if (glyphPos.y + glyphSize.y > extents.y) extents.y = glyphPos.y + glyphSize.y;
 
-
 		//Move glyph into world space
 		glyphPos += vec2(text.position.x, text.position.y);
 
 		origin.x += glyph->advance;
-		info.caretOffsetInPixels = origin * text.textSize;
-
-		//info.caretOffsetInPixels.x += glyph->advance * text.textSize * 0.5f;
-
+		info.caretOffset = origin * actualSize;
 
 		glyphRects.push_back({ glyphPos, glyphSize, glyph });
 	}
@@ -759,45 +637,65 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 			glyphRect.character->uvMax
 		};
 
-		u32 baseOffset = (vertexCount * buffer.vertexComponentCount);
-
-		for (u32 vertIndex = 0; vertIndex < 4; vertIndex++)
+		if (buffer->vertexType == POS_UV_COLOR)
 		{
-			u32 vertOffset = baseOffset + vertIndex * buffer.vertexComponentCount;
-			u32 positionOffset = vertOffset + (positionAttrib->offset / positionAttrib->componentWidth);
-			u32 uvOffset = vertOffset + (uvAttrib->offset / uvAttrib->componentWidth);
-			memcpy(vertexData.data() + positionOffset, &positions[vertIndex], sizeof(vec3));
-			memcpy(vertexData.data() + uvOffset, &UVs[vertIndex], sizeof(vec2));
-
-			if (colorAttrib != nullptr)
+			for (int i = 0; i < 4; i++)
 			{
-				u32 colorOffset = vertOffset + (colorAttrib->offset / colorAttrib->componentWidth);
-				memcpy(vertexData.data() + colorOffset, &text.color, sizeof(vec4));
+				buffer->posUVColorVerts.push_back({ positions[i], UVs[i], text.color });
+			}
+		}
+		else
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				buffer->posUVVerts.push_back({ positions[i], UVs[i] });
 			}
 		}
 
-		indices.push_back(vertexCount + 0);
-		indices.push_back(vertexCount + 1);
-		indices.push_back(vertexCount + 2);
-		indices.push_back(vertexCount + 2);
-		indices.push_back(vertexCount + 3);
-		indices.push_back(vertexCount + 0);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 0);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 1);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 2);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 2);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 3);
+		buffer->vertexIndices.push_back(buffer->vertexCount + 0);
 
-		vertexCount += 4;
+		buffer->vertexCount += 4;
 	}
 }
+
+void DebugPrintFontData(Font* font)
+{
+	std::cout << "DEBUG PRINT FONT:\n\n";
+
+	for (auto it = font->characters.begin(); it != font->characters.end(); it++)
+	{
+		std::cout << it->first;
+		std::cout << ":  bearing=(" << std::to_string(it->second.bearing.x) << "," << std::to_string(it->second.bearing.x) << ")	";
+		std::cout << "size=(" << std::to_string(it->second.size.x) << "," << std::to_string(it->second.size.x) << ")	";
+		std::cout << "advance=" << std::to_string(it->second.advance) << "\n";
+	}
+
+	std::cout << "\n";
+}
+
+//  888888ba                          dP                       .88888.                                       
+//  88    `8b                         88                      d8'   `8b                                      
+//  88aaaa8P' .d8888b. 88d888b. .d888b88 .d8888b. 88d888b.    88     88  dP    dP .d8888b. dP    dP .d8888b. 
+//  88   `8b. 88ooood8 88'  `88 88'  `88 88ooood8 88'  `88    88  db 88  88    88 88ooood8 88    88 88ooood8 
+//  88     88 88.  ... 88    88 88.  .88 88.  ... 88          Y8.  Y88P  88.  .88 88.  ... 88.  .88 88.  ... 
+//  dP     dP `88888P' dP    dP `88888P8 `88888P' dP           `8888PY8b `88888P' `88888P' `88888P' `88888P'
 
 void RenderQueue::Clear()
 {
 	//Clear batches that were used last frame
 	for (int i = 0; i < currentSpriteBatchIndex; i++)
 	{
-		spriteBatches[i].Clear();
+		spriteBatches[i].buffer->Clear();
 	}
 
 	for (int i = 0; i < currentTextBatchIndex; i++)
 	{
-		textBatches[i].Clear();
+		textBatches[i].buffer->Clear();
 	}
 
 	currentSpriteBatchIndex = 0;
@@ -806,13 +704,13 @@ void RenderQueue::Clear()
 	steps.clear();
 }
 
-void RenderQueue::PushStep()
+void RenderQueue::AddStep()
 {
 	steps.push_back(Step());
 	stepIndex++;
 }
 
-void RenderQueue::PushStep(void(*preDraw)(), void(*postDraw)())
+void RenderQueue::AddStep(void(*preDraw)(), void(*postDraw)())
 {
 	Step step;
 	step.preDraw = preDraw;
@@ -844,7 +742,12 @@ void RenderQueue::PushSprite(const Sprite& sprite)
 		//Request/create sprite batch for this step
 		if ((size_t)currentSpriteBatchIndex + 1 > spriteBatches.size())
 		{
-			spriteBatches.push_back(SpriteBatch(buffer, spriteShader, spriteSheet));
+			SpriteBatch batch;
+			batch.buffer = new VertBuffer(POS_UV_COLOR);
+			batch.shader = spriteShader;
+			batch.sheet = spriteSheet;
+			batch.texture = batch.sheet->texture;
+			spriteBatches.push_back(batch);
 		}
 
 		spriteBatchIndex = currentSpriteBatchIndex;
@@ -883,7 +786,12 @@ void RenderQueue::PushText(const Text& text, TextRenderInfo& info)
 		//Request/create sprite batch for this step
 		if ((size_t)currentTextBatchIndex + 1 > textBatches.size())
 		{
-			textBatches.push_back(TextBatch(buffer, textShader, font));
+			TextBatch batch;
+			batch.buffer = new VertBuffer(POS_UV_COLOR);
+			batch.shader = textShader;
+			batch.font = font;
+			batch.texture = &batch.font->texture;
+			textBatches.push_back(batch);
 		}
 
 		textBatchIndex = currentTextBatchIndex;
@@ -917,97 +825,12 @@ void RenderQueue::Draw()
 	}
 }
 
-//TODO: Move this into a different file? Or move texture and shader loading into this file? Questions indeed...
-Font* LoadFont(const char* filepath, u32 pixelHeight)
-{
-#ifdef TRACY_ENABLE
-	ZoneScoped;
-#endif
-
-	std::string fullPath = std::string(fontPath) + filepath;
-
-	//Load .ttf file
-	long size;
-	unsigned char* fontBuffer;
-	FILE* fontFile = fopen(fullPath.c_str(), "rb"); //Open file
-	fseek(fontFile, 0, SEEK_END); //Seek to end
-	size = ftell(fontFile); //Get length
-	fseek(fontFile, 0, SEEK_SET); //Seek back to start
-	fontBuffer = new unsigned char[(size_t)size]; //Allocate buffer
-	fread(fontBuffer, (size_t)size, 1, fontFile); //Read file into buffer
-	fclose(fontFile); //Close file
-
-	//Create font
-	stbtt_fontinfo fontInfo;
-	if (stbtt_InitFont(&fontInfo, fontBuffer, 0) == 0)
-	{
-		std::cout << "Loading font @" << fullPath << " failed!\n";
-		delete[] fontBuffer;
-		return nullptr;
-	}
-
-	stbtt_pack_context packContext;
-
-	const u32 unicodeCharStart = 32;
-	const u32 unicodeCharEnd = 127;
-	const u32 unicodeCharRange = unicodeCharEnd - unicodeCharStart;
-
-	const u32 atlasWidth = 1024;
-	const u32 atlasHeight = 1024;
-	const u32 atlasSize = atlasWidth * atlasHeight;
-	stbtt_packedchar packedChars[unicodeCharRange];
-	unsigned char* pixelBuffer = new unsigned char[atlasSize];
-
-	if (stbtt_PackBegin(&packContext, pixelBuffer, atlasWidth, atlasHeight, 0, 1, 0) == 0)
-	{
-		std::cout << "Packing font @" << fullPath << " failed!\n";
-		delete[] fontBuffer;
-		delete[] pixelBuffer;
-		return nullptr;
-	}
-
-	stbtt_PackSetOversampling(&packContext, 2, 2);
-	stbtt_PackFontRange(&packContext, fontBuffer, 0, (float)pixelHeight, unicodeCharStart, unicodeCharRange, packedChars);
-	stbtt_PackEnd(&packContext);
-
-	//Create atlas texture
-	u32 textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //disable byte-alignment restriction
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlasWidth, atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, pixelBuffer);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	Font* font = new Font();
-	font->lineHeight = pixelHeight;
-	font->texture = Texture(textureID, vec2(atlasWidth, atlasHeight));
-
-	for (i32 c = unicodeCharStart; c < unicodeCharEnd; c++)
-	{
-		const stbtt_packedchar& packedChar = packedChars[c - unicodeCharStart];
-
-		//Create character and store in map
-		FontCharacter character;
-		character.uvMin = vec2((float)packedChar.x0 / (float)atlasWidth, (float)packedChar.y0 / (float)atlasHeight);
-		character.uvMax = vec2((float)packedChar.x1 / (float)atlasWidth, (float)packedChar.y1 / (float)atlasHeight);
-		character.size = vec2(packedChar.xoff2 - packedChar.xoff, packedChar.yoff2 - packedChar.yoff);
-		character.bearing = vec2(packedChar.xoff, 1.f - packedChar.yoff);
-		character.advance = packedChar.xadvance;
-
-		font->characters.insert(std::pair<i32, FontCharacter>(c, character));
-	}
-
-	std::cout << "Successfully loaded font : @" << fullPath << "\n";
-
-	delete[] fontBuffer;
-	delete[] pixelBuffer;
-
-	return font;
-}
+//  a88888b.                                                
+// d8'   `88                                                
+// 88        .d8888b. 88d8b.d8b. .d8888b. 88d888b. .d8888b. 
+// 88        88'  `88 88'`88'`88 88ooood8 88'  `88 88'  `88 
+// Y8.   .88 88.  .88 88  88  88 88.  ... 88       88.  .88 
+//  Y88888P' `88888P8 dP  dP  dP `88888P' dP       `88888P8
 
 void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 {
@@ -1078,19 +901,3 @@ bool PointIntersectsCamera(vec2 position, float buffer)
 
 	return position.x > left && position.x < right && position.y > bottom && position.y < top;
 }
-
-void DebugPrintFontData(Font* font)
-{
-	std::cout << "DEBUG PRINT FONT:\n\n";
-
-	for (auto it = font->characters.begin(); it != font->characters.end(); it++)
-	{
-		std::cout << it->first;
-		std::cout << ":  bearing=(" << std::to_string(it->second.bearing.x) << "," << std::to_string(it->second.bearing.x) << ")	";
-		std::cout << "size=(" << std::to_string(it->second.size.x) << "," << std::to_string(it->second.size.x) << ")	";
-		std::cout << "advance=" << std::to_string(it->second.advance) << "\n";
-	}
-
-	std::cout << "\n";
-}
-

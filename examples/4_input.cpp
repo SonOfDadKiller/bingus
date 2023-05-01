@@ -75,7 +75,7 @@ void Update(float dt)
 			vars.size = vec2(80);
 			vars.margin = Edges::All(10);
 			vars.onPress = []() {
-				windows.pop_back();
+				if (windows.size() != 0) windows.pop_back();
 			};
 			Image(MINUS);
 				vars.pivot = vars.anchor = CENTER;

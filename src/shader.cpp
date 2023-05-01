@@ -10,8 +10,6 @@ using std::stringstream;
 
 const static char* shaderPath = "../res/shaders/";
 
-static Shader* activeShader;
-
 u32 LoadShader(ShaderType type, const char* filePath)
 {
 	string s;

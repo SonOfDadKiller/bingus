@@ -102,6 +102,7 @@ void ModeButton(std::string text, TestMode mode)
 			vars.margin = Edges::All(0.1f);
 			vars.size = vec2(0);
 			vars.textAlignment = CENTER;
+			vars.textHeightInPixels = 28.f;
 		EndNode();
 	EndNode();
 }
@@ -118,6 +119,7 @@ void Update(float dt)
 				vars.size = vec2(0, 40);
 				vars.margin = Edges::All(0.1f);
 				vars.textAlignment = CENTER;
+				vars.textHeightInPixels = 36.f;
 			EndNode();
 			ModeButton("AABB to AABB", AABBToAABB);
 			ModeButton("Circle to Circle", CircleToCircle);
@@ -169,7 +171,7 @@ void Draw()
 		if (intersects)
 		{
 			DrawDebugCircle(DEBUG_WORLD, Circle(p, 0.02f), 16, vec4(1), false);
-			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.8f, vec4(1), "t = " + std::to_string(t));
+			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.1f, vec4(1), "t = " + std::to_string(t));
 		}
 	}
 	else if (testMode == SegmentToCircle)
@@ -184,7 +186,7 @@ void Draw()
 		if (intersects)
 		{
 			DrawDebugCircle(DEBUG_WORLD, Circle(p, 0.02f), 16, vec4(1), false);
-			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.8f, vec4(1), "t = " + std::to_string(t));
+			DrawDebugText(DEBUG_WORLD, vec3(p.x + 0.2, p.y + 0.2f, 0), 0.1f, vec4(1), "t = " + std::to_string(t));
 		}
 	}
 	else if (testMode == CircleSweepToAABB)
