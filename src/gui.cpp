@@ -593,12 +593,18 @@ void ProcessGUIInput()
 			if (interactWidget >= widgets.size()) interactWidget = 0;
 
 			GUIWidget* inputWidget = &widgets[interactWidget];
-			switch (inputWidget->type)
+			if (inputWidget->type != TEXTFIELD)
 			{
-			case SLIDER:
 				interactWidget = 0;
-				break;
 			}
+			
+
+// 			switch (inputWidget->type)
+// 			{
+// 			case SLIDER:
+// 				interactWidget = 0;
+// 				break;
+// 			}
 		}
 
 		//Go through tree and process input on widgets
