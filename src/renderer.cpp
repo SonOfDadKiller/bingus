@@ -58,7 +58,7 @@ void InitializeRenderer()
 // `Y88888b. 88d888b. .d8888b. .d888b88 .d8888b. 88d888b. 
 //       `8b 88'  `88 88'  `88 88'  `88 88ooood8 88'  `88 
 // d8'   .8P 88    88 88.  .88 88.  .88 88.  ... 88       
-//  Y88888P  dP    dP `88888P8 `88888P8 `88888P' dP
+//  Y88888P  dP    dP `88888P8 `88888P8 `88888P' dP       
 
 u32 activeShaderID;
 

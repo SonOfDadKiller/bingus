@@ -9,8 +9,6 @@ SET(BINGUS_SOURCE
 	"src/glad.c"
 	"src/bingus.cpp"
 	"src/math.cpp"
-	"src/shader.cpp"
-	"src/texture.cpp"
 	"src/renderer.cpp"
 	"src/window.cpp"
 	"src/input.cpp"
