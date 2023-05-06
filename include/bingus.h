@@ -138,6 +138,7 @@ void TranslateCamera(vec2 translation);
 void ZoomCamera(float sizeChange);
 vec2 GetCameraPosition();
 float GetCameraSize();
+struct AABB GetCameraExents();
 
 bool PointIntersectsCamera(vec2 position, float buffer = 0.f);
 

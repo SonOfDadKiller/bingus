@@ -11,6 +11,7 @@ RenderQueue globalRenderQueue;
 
 static vec2 cameraPosition = vec2(-1, -1);
 static float cameraSize;
+static AABB cameraExtents;
 static u32 cameraUBO;
 mat4 cameraProjection;
 mat4 cameraView;
@@ -830,7 +831,7 @@ void RenderQueue::Draw()
 // 88        .d8888b. 88d8b.d8b. .d8888b. 88d888b. .d8888b. 
 // 88        88'  `88 88'`88'`88 88ooood8 88'  `88 88'  `88 
 // Y8.   .88 88.  .88 88  88  88 88.  ... 88       88.  .88 
-//  Y88888P' `88888P8 dP  dP  dP `88888P' dP       `88888P8
+//  Y88888P' `88888P8 dP  dP  dP `88888P' dP       `88888P8 
 
 void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 {
@@ -838,13 +839,18 @@ void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 	{
 		cameraPosition = position;
 
+		float aspectRatio = GetWindowSize().x / GetWindowSize().y;
+		vec2 halfSize = vec2((cameraSize * aspectRatio), cameraSize) / 2.f;
+		cameraExtents.min = cameraPosition - halfSize;
+		cameraExtents.max = cameraPosition + halfSize;
+
 		//Step view matrix
 		vec3 pos = vec3(position.x, position.y, 1);
 		cameraView = glm::lookAt(pos, pos + vec3(0, 0, -1), vec3(0, 1, 0));
 		glBindBuffer(GL_UNIFORM_BUFFER, cameraUBO);
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), glm::value_ptr(cameraView));
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
+		 
 		cameraViewProjInverse = glm::inverse(cameraProjection * cameraView);
 	}
 }
@@ -857,6 +863,12 @@ void SetCameraSize(float size, bool forceUpdateUBO)
 
 		//Step projection matrix
 		float actualCameraSize = cameraSize / GetWindowSize().y;
+
+		float aspectRatio = GetWindowSize().x / GetWindowSize().y;
+		vec2 halfSize = vec2((cameraSize * aspectRatio), cameraSize) / 2.f;
+		cameraExtents.min = cameraPosition - halfSize;
+		cameraExtents.max = cameraPosition + halfSize;
+
 		float halfWidth = GetWindowSize().x * actualCameraSize * 0.5f;
 		float halfHeight = GetWindowSize().y * actualCameraSize * 0.5f;
 		cameraProjection = glm::ortho(-halfWidth, halfWidth, -halfHeight, halfHeight);
@@ -886,6 +898,11 @@ vec2 GetCameraPosition()
 float GetCameraSize()
 {
 	return cameraSize;
+}
+
+AABB GetCameraExents()
+{
+	return cameraExtents;
 }
 
 bool PointIntersectsCamera(vec2 position, float buffer)

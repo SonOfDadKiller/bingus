@@ -597,7 +597,6 @@ void ProcessGUIInput()
 			{
 				interactWidget = 0;
 			}
-			
 
 // 			switch (inputWidget->type)
 // 			{

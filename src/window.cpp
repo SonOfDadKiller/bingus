@@ -62,7 +62,10 @@ void HandleWindowSizeChange(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 	windowSize = vec2(width, height);
+
+	//Update camera projection, keep size
 	SetCameraSize(GetCameraSize(), true);
+
 	SetGUICanvasSize(windowSize);
 }
 
