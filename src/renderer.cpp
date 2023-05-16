@@ -15,6 +15,7 @@ static AABB cameraExtents;
 static u32 cameraUBO;
 mat4 cameraProjection;
 mat4 cameraView;
+mat4 cameraViewProj;
 mat4 cameraViewProjInverse;
 
 void DebugPrintFontData(Font* font);
@@ -851,7 +852,8 @@ void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), glm::value_ptr(cameraView));
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		 
-		cameraViewProjInverse = glm::inverse(cameraProjection * cameraView);
+		cameraViewProj = cameraProjection * cameraView;
+		cameraViewProjInverse = glm::inverse(cameraViewProj);
 	}
 }
 
@@ -876,7 +878,8 @@ void SetCameraSize(float size, bool forceUpdateUBO)
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), glm::value_ptr(cameraProjection));
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-		cameraViewProjInverse = glm::inverse(cameraProjection * cameraView);
+		cameraViewProj = cameraProjection * cameraView;
+		cameraViewProjInverse = glm::inverse(cameraViewProj);
 	}
 }
 

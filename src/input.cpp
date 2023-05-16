@@ -33,6 +33,7 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 	{
 		case GLFW_MOUSE_BUTTON_LEFT: event.key = MOUSE_LEFT; break;
 		case GLFW_MOUSE_BUTTON_RIGHT: event.key = MOUSE_RIGHT; break;
+		case GLFW_MOUSE_BUTTON_MIDDLE: event.key = MOUSE_MIDDLE; break;
 		default: return;
 	}
 
@@ -63,8 +64,8 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	
 	switch (action)
 	{
-		case GLFW_PRESS: 
-			event.state = PRESS; 
+		case GLFW_PRESS:
+			event.state = PRESS;
 			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
 			{
 				inputString->erase(inputString->end() - 1);
@@ -162,7 +163,6 @@ void SortListeners()
 	sort(listeners.begin(), listeners.end(), CompareInputListeners);
 }
 
-
 void RegisterInputListener(InputListener* listener)
 {
 	listeners.push_back(listener);
@@ -179,6 +179,28 @@ void UnregisterInputListener(InputListener* listener)
 	}
 }
 
+vec2 PixelToWorld(vec2 pixelCoord)
+{
+	pixelCoord = (pixelCoord / GetWindowSize()) * 2.f - 1.f;
+	vec4 origin = cameraViewProjInverse * vec4(pixelCoord, 0.f, 1.f);
+	origin.w = 1.0f / origin.w;
+	return vec2(origin.x, origin.y) * origin.w;
+}
+
+vec3 PixelToWorld(vec3 pixelCoord)
+{
+	pixelCoord = (pixelCoord / vec3(GetWindowSize(), 0)) * 2.f - 1.f;
+	vec4 origin = cameraViewProjInverse * vec4(pixelCoord.x, pixelCoord.y, 0.f, 1.f);
+	origin.w = 1.0f / origin.w;
+	return vec3(origin.x, origin.y, origin.z) * origin.w;
+}
+
+vec2 WorldToPixel(vec2 worldCoord)
+{
+	vec4 origin = cameraViewProj * vec4(worldCoord, 0.f, 1.f);
+	return vec2(origin.x, -origin.y) * GetWindowSize() / 2.f;
+}
+
 void CalculateWorldMousePos(GLFWwindow* window)
 {
 #ifdef TRACY_ENABLE
@@ -187,23 +209,13 @@ void CalculateWorldMousePos(GLFWwindow* window)
 	//Step mouse position
 	double x, y;
 	glfwGetCursorPos(window, &x, &y);
+
 	mousePrevPosition = mousePosition;
 	mousePosition = vec2(x, GetWindowSize().y - y);
-	mouseDelta = mousePrevPosition - mousePosition;
+	mouseDelta = mousePosition - mousePrevPosition;
 
-	//Make cursor coordinates from -1 to +1
-	float pt_x = (mousePosition.x / GetWindowSize().x) * 2.f - 1.f;
-	float pt_y = (mousePosition.y / GetWindowSize().y) * 2.f - 1.f;
-
-	//z value from 0.f to 1.f for d3d
-	vec4 origin = cameraViewProjInverse * vec4(pt_x, pt_y, 0.f, 1.f);
-	origin.w = 1.0f / origin.w;
-	origin.x *= origin.w;
-	origin.y *= origin.w;
-	origin.z *= origin.w;
-
-	mousePrevWorldPosition = mouseWorldPosition;
-	mouseWorldPosition = vec3(origin.x, origin.y, origin.z);
+	mousePrevWorldPosition = PixelToWorld(vec3(mousePrevPosition.x, mousePrevPosition.y, 0));
+	mouseWorldPosition = PixelToWorld(vec3(mousePosition.x, mousePosition.y, 0));
 	mouseWorldDelta = mouseWorldPosition - mousePrevWorldPosition;
 }
 
@@ -290,4 +302,3 @@ void UpdateInput(GLFWwindow* window, float dt)
 	//Update input string timer
 	inputStringTimer += dt;
 }
-

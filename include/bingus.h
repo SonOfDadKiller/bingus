@@ -130,6 +130,7 @@ extern struct RenderQueue globalRenderQueue;
 //Camera stuff
 extern mat4 cameraProjection;
 extern mat4 cameraView;
+extern mat4 cameraViewProj;
 extern mat4 cameraViewProjInverse;
 
 void SetCameraPosition(vec2 position, bool forceUpdateUBO = false);
@@ -448,89 +449,90 @@ struct TestEntity : Entity
 //TODO: Add rest of keyboard
 #define MOUSE_LEFT			0
 #define MOUSE_RIGHT			1
-#define MOUSE_SCROLL_UP		2
-#define MOUSE_SCROLL_DOWN	3
-
-#define KEY_A				4
-#define KEY_B				5
-#define KEY_C				6
-#define KEY_D				7
-#define KEY_E				8
-#define KEY_F				9
-#define KEY_G				10
-#define KEY_H				11
-#define KEY_I				12
-#define KEY_J				13
-#define KEY_K				14
-#define KEY_L				15
-#define KEY_M				16
-#define KEY_N				17
-#define KEY_O				18
-#define KEY_P				19
-#define KEY_Q				20
-#define KEY_R				21
-#define KEY_S				22
-#define KEY_T				23
-#define KEY_U				24
-#define KEY_V				25
-#define KEY_W				26
-#define KEY_X				27
-#define KEY_Y				28
-#define KEY_Z				29
-
-#define KEY_0				30
-#define KEY_1				31
-#define KEY_2				32
-#define KEY_3				33
-#define KEY_4				34
-#define KEY_5				35
-#define KEY_6				36
-#define KEY_7				37
-#define KEY_8				38
-#define KEY_9				39
-
-#define KEY_APOSTROPHE		40
-#define KEY_COMMA			41
-#define KEY_MINUS			42
-#define KEY_PERIOD			43
-#define KEY_SLASH			44
-#define KEY_BACKSLASH		45
-#define KEY_EQUAL			46
-#define KEY_LEFT_BRACKET	47
-#define KEY_RIGHT_BRACKET	48
-#define KEY_GRAVE_ACCENT	49
-
-#define KEY_SPACE			50
-#define KEY_ESCAPE			51
-#define KEY_ENTER			52
-#define KEY_TAB				53
-#define KEY_BACKSPACE		54
-#define KEY_INSERT			55
-#define KEY_DELETE			56
-#define KEY_UP				57
-#define KEY_RIGHT			58
-#define KEY_DOWN			59
-#define KEY_LEFT			60
-#define KEY_PAGE_UP			61
-#define KEY_PAGE_DOWN		62
-#define KEY_HOME			63
-#define KEY_END				64
-#define KEY_CAPS_LOCK		65
-#define KEY_SCROLL_LOCK		66
-#define KEY_NUM_LOCK		67
-#define KEY_PRINT_SCREEN	68
-#define KEY_PAUSE			69
-#define KEY_F0				70
-#define KEY_F1				71
-#define KEY_F2				72
-#define KEY_F3				73
-#define KEY_F4				74
-#define KEY_F5				75
-#define KEY_F6				76
-#define KEY_F7				77
-#define KEY_F8				78
-#define KEY_F9				79
-#define KEY_LAST			80
+#define MOUSE_MIDDLE		2
+#define MOUSE_SCROLL_UP		3
+#define MOUSE_SCROLL_DOWN	4
+							
+#define KEY_A				5
+#define KEY_B				6
+#define KEY_C				7
+#define KEY_D				8
+#define KEY_E				9
+#define KEY_F				10
+#define KEY_G				11
+#define KEY_H				12
+#define KEY_I				13
+#define KEY_J				14
+#define KEY_K				15
+#define KEY_L				16
+#define KEY_M				17
+#define KEY_N				18
+#define KEY_O				19
+#define KEY_P				20
+#define KEY_Q				21
+#define KEY_R				22
+#define KEY_S				23
+#define KEY_T				24
+#define KEY_U				25
+#define KEY_V				26
+#define KEY_W				27
+#define KEY_X				28
+#define KEY_Y				29
+#define KEY_Z				30
+							
+#define KEY_0				31
+#define KEY_1				32
+#define KEY_2				33
+#define KEY_3				34
+#define KEY_4				35
+#define KEY_5				36
+#define KEY_6				37
+#define KEY_7				38
+#define KEY_8				39
+#define KEY_9				40
+							
+#define KEY_APOSTROPHE		41
+#define KEY_COMMA			42
+#define KEY_MINUS			43
+#define KEY_PERIOD			44
+#define KEY_SLASH			45
+#define KEY_BACKSLASH		46
+#define KEY_EQUAL			47
+#define KEY_LEFT_BRACKET	48
+#define KEY_RIGHT_BRACKET	49
+#define KEY_GRAVE_ACCENT	50
+							
+#define KEY_SPACE			51
+#define KEY_ESCAPE			52
+#define KEY_ENTER			53
+#define KEY_TAB				54
+#define KEY_BACKSPACE		55
+#define KEY_INSERT			56
+#define KEY_DELETE			57
+#define KEY_UP				58
+#define KEY_RIGHT			59
+#define KEY_DOWN			60
+#define KEY_LEFT			61
+#define KEY_PAGE_UP			62
+#define KEY_PAGE_DOWN		63
+#define KEY_HOME			64
+#define KEY_END				65
+#define KEY_CAPS_LOCK		66
+#define KEY_SCROLL_LOCK		67
+#define KEY_NUM_LOCK		68
+#define KEY_PRINT_SCREEN	69
+#define KEY_PAUSE			70
+#define KEY_F0				71
+#define KEY_F1				72
+#define KEY_F2				73
+#define KEY_F3				74
+#define KEY_F4				75
+#define KEY_F5				76
+#define KEY_F6				77
+#define KEY_F7				78
+#define KEY_F8				79
+#define KEY_F9				80
+#define KEY_LAST			81
 
 enum InputState
 {
@@ -593,6 +595,10 @@ extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;
 extern vec2 mouseDelta;
 extern vec3 mouseWorldDelta;
+
+vec2 PixelToWorld(vec2 pixelCoord);
+vec3 PixelToWorld(vec3 pixelCoord);
+vec2 WorldToPixel(vec2 worldCoord);
 
 void InitializeInput(GLFWwindow* window);
 void UpdateInput(GLFWwindow* window, float dt);
