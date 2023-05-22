@@ -900,7 +900,7 @@ namespace gui
 
 			if (window->grabbed)
 			{
-				window->pos += vec2(-mouseDelta.x, mouseDelta.y);
+				window->pos += vec2(mouseDelta.x, -mouseDelta.y);
 			}
 			
 			if (window->grabbedLeft || window->grabbedBottomLeft || window->grabbedTopLeft)
