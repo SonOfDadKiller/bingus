@@ -29,6 +29,14 @@ struct DebugCircle
 	bool fill;
 };
 
+struct DebugPolygon
+{
+	vec4 color;
+	Polygon polygon;
+	float timer;
+	bool fill;
+};
+
 struct DebugText
 {
 	vec4 color;
@@ -41,6 +49,7 @@ struct DebugText
 std::vector<DebugLine> lines;
 std::vector<DebugAABB> aabbs;
 std::vector<DebugCircle> circles;
+std::vector<DebugPolygon> polygons;
 std::vector<DebugText> texts;
 
 //TODO: Implement space var
@@ -115,6 +124,16 @@ void DrawDebugCircle(u32 space, const Circle& circle, u32 pointCount, vec4 color
 	circles.push_back(d_circle);
 }
 
+void DrawDebugPolygon(u32 space, const Polygon& polygon, vec4 color, bool fill, float timer)
+{
+	DebugPolygon d_polygon;
+	d_polygon.polygon = polygon;
+	d_polygon.color = color;
+	d_polygon.fill = fill;
+	d_polygon.timer = timer;
+	polygons.push_back(d_polygon);
+}
+
 void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer)
 {
 	DebugText text;
@@ -146,7 +165,7 @@ void PushTriToBatch(vec3 a, vec3 b, vec3 c, vec4 color)
 
 }
 
-void PushAABBToBatch(AABB box, vec4 color, bool fill)
+void PushAABBToBatch(const AABB& box, vec4 color, bool fill)
 {
 	if (fill)
 	{
@@ -161,7 +180,24 @@ void PushAABBToBatch(AABB box, vec4 color, bool fill)
 	}
 }
 
-void PushCircleToBatch(Circle circle, vec4 color, u32 pointCount, bool fill)
+void PushPolygonToBatch(const Polygon& polygon, vec4 color, bool fill)
+{
+	if (fill)
+	{
+		
+	}
+	else
+	{
+		for (int i = 0; i < polygon.vertices.size(); i++)
+		{
+			int next = i + 1;
+			if (next == polygon.vertices.size()) next = 0;
+			PushLineToBatch(vec3(polygon.vertices[i], 0), vec3(polygon.vertices[next], 0), color);
+		}
+	}
+}
+
+void PushCircleToBatch(const Circle& circle, vec4 color, u32 pointCount, bool fill)
 {
 	if (fill)
 	{
@@ -225,6 +261,18 @@ void DrawDebug(float dt)
 		circle_it->timer -= dt;
 		if (circle_it->timer <= 0) circle_it = circles.erase(circle_it);
 		else circle_it++;
+	}
+
+	//Process polygons
+	auto polygon_it = polygons.begin();
+	while (polygon_it != polygons.end())
+	{
+		PushPolygonToBatch(polygon_it->polygon, polygon_it->color, polygon_it->fill);
+
+		//Update timer, remove if needed
+		polygon_it->timer -= dt;
+		if (polygon_it->timer <= 0) polygon_it = polygons.erase(polygon_it);
+		else polygon_it++;
 	}
 
 	//Process text

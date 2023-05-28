@@ -779,6 +779,11 @@ struct Segment
 	}
 };
 
+struct Polygon
+{
+	std::vector<vec2> vertices;
+};
+
 float SqDistPointToAABB(vec2 point, AABB box);
 vec2 ClosestPtPointAABB(vec2 point, AABB box);
 bool TestAABBAABB(const AABB& a, const AABB& b);
@@ -808,6 +813,7 @@ void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, f
 void DrawDebugLine(u32 space, vec2 from, vec2 to, float thickness, vec4 color, float timer = 0.f);
 void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugCircle(u32 space, const Circle& circle, u32 subdiv, vec4 color, bool fill, float timer = 0.f);
+void DrawDebugPolygon(u32 space, const Polygon& polygon, vec4 color, bool fill, float timer = 0.f);
 void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string data, float timer = 0.f);
 void DrawDebugText(u32 space, vec2 position, float size, vec4 color, std::string data, float timer = 0.f);
 void DrawDebug(float dt);
