@@ -17,10 +17,15 @@ float inputStringTimer;
 static std::vector<InputListener*> listeners;
 static std::vector<InputEvent> eventBuffer;
 static std::vector<InputState> keyStates;
+static std::vector<u32> keyModifierStates;
 
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-	InputEvent event;
+	InputEvent event = { KEY_LAST, UP, KEY_MOD_NONE };
+
+	if ((mods & GLFW_MOD_CONTROL) == GLFW_MOD_CONTROL) event.modifier |= KEY_MOD_CONTROL;
+	if ((mods & GLFW_MOD_ALT) == GLFW_MOD_ALT) event.modifier |= KEY_MOD_ALT;
+	if ((mods & GLFW_MOD_SHIFT) == GLFW_MOD_SHIFT) event.modifier |= KEY_MOD_SHIFT;
 
 	switch (action)
 	{
@@ -42,7 +47,7 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 
 void MouseScrollCallback(GLFWwindow* window, double x, double y)
 {
-	InputEvent event;
+	InputEvent event = { KEY_LAST, UP, KEY_MOD_NONE };
 
 	event.key = y > 0 ? MOUSE_SCROLL_UP : MOUSE_SCROLL_DOWN;
 	event.state = PRESS;
@@ -60,7 +65,22 @@ void CharacterCallback(GLFWwindow* window, u32 codepoint)
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	InputEvent event;
+	InputEvent event = { KEY_LAST, UP, KEY_MOD_NONE };
+
+	if ((mods & GLFW_MOD_CONTROL) == GLFW_MOD_CONTROL && key != GLFW_KEY_LEFT_CONTROL && key != GLFW_KEY_RIGHT_CONTROL)
+	{
+		event.modifier |= KEY_MOD_CONTROL;
+	}
+
+	if ((mods & GLFW_MOD_ALT) == GLFW_MOD_ALT && key != GLFW_KEY_LEFT_ALT && key != GLFW_KEY_RIGHT_ALT)
+	{
+		event.modifier |= KEY_MOD_ALT;
+	}
+
+	if ((mods & GLFW_MOD_SHIFT) == GLFW_MOD_SHIFT && key != GLFW_KEY_LEFT_SHIFT && key != GLFW_KEY_RIGHT_SHIFT)
+	{
+		event.modifier |= KEY_MOD_SHIFT;
+	}
 	
 	switch (action)
 	{
@@ -116,11 +136,72 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_X: event.key = KEY_X; break;
 		case GLFW_KEY_Y: event.key = KEY_Y; break;
 		case GLFW_KEY_Z: event.key = KEY_Z; break;
+
+		case GLFW_KEY_0: event.key = KEY_0; break;
+		case GLFW_KEY_1: event.key = KEY_1; break;
+		case GLFW_KEY_2: event.key = KEY_2; break;
+		case GLFW_KEY_3: event.key = KEY_3; break;
+		case GLFW_KEY_4: event.key = KEY_4; break;
+		case GLFW_KEY_5: event.key = KEY_5; break;
+		case GLFW_KEY_6: event.key = KEY_6; break;
+		case GLFW_KEY_7: event.key = KEY_7; break;
+		case GLFW_KEY_8: event.key = KEY_8; break;
+		case GLFW_KEY_9: event.key = KEY_9; break;
+
+		case GLFW_KEY_APOSTROPHE: event.key = KEY_APOSTROPHE; break;
+		case GLFW_KEY_COMMA: event.key = KEY_COMMA; break;
+		case GLFW_KEY_MINUS: event.key = KEY_MINUS; break;
+		case GLFW_KEY_PERIOD: event.key = KEY_PERIOD; break;
+		case GLFW_KEY_SLASH: event.key = KEY_SLASH; break;
+		case GLFW_KEY_BACKSLASH: event.key = KEY_BACKSLASH; break;
+		case GLFW_KEY_EQUAL: event.key = KEY_EQUAL; break;
+		case GLFW_KEY_LEFT_BRACKET: event.key = KEY_LEFT_BRACKET; break;
+		case GLFW_KEY_RIGHT_BRACKET: event.key = KEY_RIGHT_BRACKET; break;
+		case GLFW_KEY_GRAVE_ACCENT: event.key = KEY_GRAVE_ACCENT; break;
+		case GLFW_KEY_SEMICOLON: event.key = KEY_SEMICOLON; break;
+
 		case GLFW_KEY_SPACE: event.key = KEY_SPACE; break;
 		case GLFW_KEY_ESCAPE: event.key = KEY_ESCAPE; break;
+		case GLFW_KEY_ENTER: event.key = KEY_ENTER; break;
+		case GLFW_KEY_TAB: event.key = KEY_TAB; break;
 		case GLFW_KEY_BACKSPACE: event.key = KEY_BACKSPACE; break;
-			//
-			//break;
+
+		case GLFW_KEY_INSERT: event.key = KEY_INSERT; break;
+		case GLFW_KEY_DELETE: event.key = KEY_DELETE; break;
+		case GLFW_KEY_UP: event.key = KEY_UP; break;
+		case GLFW_KEY_RIGHT: event.key = KEY_RIGHT; break;
+		case GLFW_KEY_DOWN: event.key = KEY_DOWN; break;
+		case GLFW_KEY_LEFT: event.key = KEY_LEFT; break;
+		case GLFW_KEY_PAGE_UP: event.key = KEY_PAGE_UP; break;
+		case GLFW_KEY_PAGE_DOWN: event.key = KEY_PAGE_DOWN; break;
+		case GLFW_KEY_HOME: event.key = KEY_HOME; break;
+		case GLFW_KEY_END: event.key = KEY_END; break;
+		case GLFW_KEY_CAPS_LOCK: event.key = KEY_CAPS_LOCK; break;
+		case GLFW_KEY_SCROLL_LOCK: event.key = KEY_SCROLL_LOCK; break;
+		case GLFW_KEY_NUM_LOCK: event.key = KEY_NUM_LOCK; break;
+		case GLFW_KEY_PRINT_SCREEN: event.key = KEY_PRINT_SCREEN; break;
+		case GLFW_KEY_PAUSE: event.key = KEY_PAUSE; break;
+
+		case GLFW_KEY_LEFT_CONTROL: event.key = KEY_CONTROL_LEFT; break;
+		case GLFW_KEY_LEFT_ALT: event.key = KEY_ALT_LEFT; break;
+		case GLFW_KEY_LEFT_SHIFT: event.key = KEY_SHIFT_LEFT; break;
+		case GLFW_KEY_RIGHT_CONTROL: event.key = KEY_CONTROL_RIGHT; break;
+		case GLFW_KEY_RIGHT_ALT: event.key = KEY_ALT_RIGHT; break;
+		case GLFW_KEY_RIGHT_SHIFT: event.key = KEY_SHIFT_RIGHT; break;
+		
+		case GLFW_KEY_F1: event.key = KEY_F1; break;
+		case GLFW_KEY_F2: event.key = KEY_F2; break;
+		case GLFW_KEY_F3: event.key = KEY_F3; break;
+		case GLFW_KEY_F4: event.key = KEY_F4; break;
+		case GLFW_KEY_F5: event.key = KEY_F5; break;
+		case GLFW_KEY_F6: event.key = KEY_F6; break;
+		case GLFW_KEY_F7: event.key = KEY_F7; break;
+		case GLFW_KEY_F8: event.key = KEY_F8; break;
+		case GLFW_KEY_F9: event.key = KEY_F9; break;
+		case GLFW_KEY_F10: event.key = KEY_F10; break;
+		case GLFW_KEY_F11: event.key = KEY_F11; break;
+		case GLFW_KEY_F12: event.key = KEY_F12; break;
+
 		default: return;
 	}
 
@@ -139,12 +220,9 @@ void InitializeInput(GLFWwindow* window)
 	glfwSetCharCallback(window, CharacterCallback);
 
 	//Initialize key states
-	keyStates.reserve(KEY_LAST - 1);
 
-	for (u32 key = 0; key != KEY_LAST; key++)
-	{
-		keyStates.push_back(UP);
-	}
+	keyStates = std::vector<InputState>(KEY_LAST, UP);
+	keyModifierStates = std::vector<u32>(KEY_LAST, KEY_MOD_NONE);
 
 	//Initialize global listener
 	globalInputListener.blocking = false;
@@ -177,6 +255,23 @@ void UnregisterInputListener(InputListener* listener)
 		listeners.erase(it);
 		SortListeners();
 	}
+}
+
+std::string GetInputBindingName(u32 binding)
+{
+	static std::vector<std::string> inputBindingNames = {
+		"Mouse Left", "Mouse Right", "Mouse Middle", "Mouse Scroll Up", "Mouse Scroll Down",
+		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+		"'", ",", "-", ".", "/", "\\", "=", "[", "]", "`", ";",
+		"Space", "Escape", "Enter", "Tab", "Backspace", "Insert", "Delete", "Up", "Right", "Down", "Left", "Page Up", "Page Down", "Home",
+		"End", "Caps Lock", "Scroll Lock", "Num Lock", "Print Screen", "Pause",
+		"Left Control", "Left Alt", "Left Shift", "Right Control", "Right Alt", "Right Shift",
+		"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+		"KEY_LAST"
+	};
+
+	return inputBindingNames[binding];
 }
 
 vec2 PixelToWorld(vec2 pixelCoord)
@@ -227,20 +322,56 @@ InputListener::InputListener(i32 priority, bool blocking)
 
 void InputListener::BindAction(u32 key, InputState state, InputCallback callback)
 {
-	BindAction(key, state, false, callback);
+	BindAction(key, state, KEY_MOD_ANY, false, callback);
 }
 
-void InputListener::BindAction(u32 key, InputState state, bool blocking, InputCallback callback)
+void InputListener::BindAction(u32 key, InputState state, std::string namedEvent)
 {
-	InputEvent event = { key, state };
-	InputBinding binding = { callback, blocking };
+	BindAction(key, state, KEY_MOD_ANY, false, namedEvent);
+}
 
+void InputListener::BindAction(u32 key, InputState state, u32 modifier, InputCallback callback)
+{
+	BindAction(key, state, modifier, false, callback);
+}
+
+void InputListener::BindAction(u32 key, InputState state, u32 modifier, std::string namedEvent)
+{
+	BindAction(key, state, modifier, false, namedEvent);
+}
+
+void InputListener::BindAction(u32 key, InputState state, u32 modifier, bool blocking, InputCallback callback)
+{
+	InputEvent event = { key, state, modifier };
+	InputBinding binding = { callback, "", blocking};
 	bindings[event] = binding;
+}
+
+void InputListener::BindAction(u32 key, InputState state, u32 modifier, bool blocking, std::string namedEvent)
+{
+	InputEvent event = { key, state, modifier };
+	InputBinding binding = { nullptr, namedEvent, blocking };
+	bindings[event] = binding;
+}
+
+void InputListener::BindNamedEvent(std::string name, InputCallback callback)
+{
+	namedEvents[name] = callback;
+}
+
+void InputListener::UnbindNamedEvent(std::string name)
+{
+	namedEvents.erase(name);
 }
 
 void InputListener::UnbindAction(u32 key, InputState state)
 {
-	bindings.erase({ key, state });
+	UnbindAction(key, state, KEY_MOD_ANY);
+}
+
+void InputListener::UnbindAction(u32 key, InputState state, u32 modifier)
+{
+	bindings.erase({ key, state, KEY_MOD_ANY });
 }
 
 void InputListener::SetPriority(i32 priority)
@@ -261,6 +392,7 @@ void UpdateInput(GLFWwindow* window, float dt)
 	for (auto itEvent = eventBuffer.begin(); itEvent != eventBuffer.end(); itEvent++)
 	{
 		keyStates[itEvent->key] = itEvent->state;
+		keyModifierStates[itEvent->key] = itEvent->modifier;
 	}
 
 	//Clear that mother fucking buffer god damn
@@ -271,16 +403,44 @@ void UpdateInput(GLFWwindow* window, float dt)
 		//Send event to listeners
 		for (auto itListener = listeners.begin(); itListener != listeners.end(); itListener++)
 		{
-			InputEvent event = { key, keyStates[key] };
+			//Check for event with matching modifier
+			InputEvent event = { key, keyStates[key], keyModifierStates[key] };
 			auto entry = (*itListener)->bindings.find(event);
 
 			if (entry != (*itListener)->bindings.end())
 			{
-				//Binding for this event exists, trigger callback
-				entry->second.callback();
+				//Binding for this event exists, trigger callback, or named event if null
+				if (entry->second.callback == nullptr)
+				{
+					(*itListener)->namedEvents[entry->second.eventName]();
+				}
+				else
+				{
+					entry->second.callback();
+				}
 
 				//Block if either listener or binding is set to blocking
 				if (entry->second.blocking || (*itListener)->blocking) break;
+			}
+
+			//Check for event with 'any' modifier
+			InputEvent anyModEvent = { key, keyStates[key], KEY_MOD_ANY };
+			auto anyModEntry = (*itListener)->bindings.find(anyModEvent);
+
+			if (anyModEntry != (*itListener)->bindings.end())
+			{
+				//Binding for this event exists, trigger callback, or named event if null
+				if (anyModEntry->second.callback == nullptr)
+				{
+					(*itListener)->namedEvents[anyModEntry->second.eventName]();
+				}
+				else
+				{
+					anyModEntry->second.callback();
+				}
+
+				//Block if either listener or binding is set to blocking
+				if (anyModEntry->second.blocking || (*itListener)->blocking) break;
 			}
 		}
 

@@ -7,6 +7,17 @@ void Start();
 void Update(float dt);
 void Draw();
 
+std::vector<bool> bindingStates;
+std::string textField;
+
+struct FloatyText
+{
+	float time;
+	std::string text;
+};
+
+std::vector<FloatyText> floatyTexts;
+
 int main()
 {
 	SetupWindow(1280, 720, "Input");
@@ -23,16 +34,48 @@ int main()
 
 void Start()
 {
-	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
+	inputString = &textField;
+
+	bindingStates = std::vector<bool>(KEY_LAST, false);
+
+	for (int i = 0; i < KEY_LAST; i++)
 	{
-		ExitGame();
+		globalInputListener.BindAction(i, PRESS, KEY_MOD_NONE, [i]()
+		{
+			bindingStates[i] = true;
+			floatyTexts.push_back({ 0, GetInputBindingName(i) });
+		});
+
+		globalInputListener.BindAction(i, PRESS, KEY_MOD_CONTROL, [i]()
+		{
+			bindingStates[i] = true;
+			floatyTexts.push_back({ 0, "Ctrl+" + GetInputBindingName(i)});
+		});
+
+		globalInputListener.BindAction(i, PRESS, KEY_MOD_ALT, [i]()
+		{
+			bindingStates[i] = true;
+			floatyTexts.push_back({ 0, "Alt+" + GetInputBindingName(i) });
+		});
+
+		globalInputListener.BindAction(i, PRESS, KEY_MOD_SHIFT, [i]()
+		{
+			bindingStates[i] = true;
+			floatyTexts.push_back({ 0, "Shift+" + GetInputBindingName(i) });
+		});
+
+		globalInputListener.BindAction(i, RELEASE, [i]()
+		{
+			bindingStates[i] = false;
+		});
+	}
+
+	globalInputListener.BindNamedEvent("Jump", []() {
+		std::cout << "Jump!\n";
 	});
+
+	globalInputListener.BindAction(KEY_SPACE, PRESS, "Jump");
 }
-
-using namespace gui;
-
-std::vector<GUIWindow> windows;
-bool tickboxState;
 
 void Update(float dt)
 {
@@ -40,50 +83,18 @@ void Update(float dt)
 	ZoneScoped;
 #endif
 
-	for (auto window = windows.begin(); window != windows.end(); window++)
+	for (int i = 0; i < floatyTexts.size(); i++)
 	{
-		Window(&(*window));
-			Tickbox(&tickboxState);
-				vars.size = vec2(32);
-				vars.pos = vec2(25);
-			EndNode();
-		EndNode();
+		DrawDebugText(DEBUG_WORLD, vec2(0.5, 0.5) + vec2(0, 1) * floatyTexts[i].time * 0.4f, 0.1f, vec4(0, 1, 0, 1), floatyTexts[i].text);
+		floatyTexts[i].time += dt;
+
+		if (floatyTexts[i].time > 2.f)
+		{
+			floatyTexts.erase(floatyTexts.begin() + i);
+			i--;
+		}
 	}
-	
-	Image(BOX);
-		vars.pos = vec2(50, 80);
-		vars.size = vec2(200, 100);
-		Button();
-			vars.pivot = vars.anchor = CENTER_RIGHT;
-			vars.size = vec2(80);
-			vars.margin = Edges::All(10);
-			vars.onPress = []() {
-				GUIWindow window;
-				window.pos = vec2(300);
-				window.size = vec2(400, 300);
-				window.minSize = vec2(400, 300);
-				window.maxSize = vec2(700, 500);
-				windows.push_back(window);
-			};
-			Image(PLUS);
-				vars.pivot = vars.anchor = CENTER;
-				vars.size = vec2(60);
-			EndNode();
-		EndNode();
-		Button();
-			vars.pivot = vars.anchor = CENTER_LEFT;
-			vars.size = vec2(80);
-			vars.margin = Edges::All(10);
-			vars.onPress = []() {
-				if (windows.size() != 0) windows.pop_back();
-			};
-			Image(MINUS);
-				vars.pivot = vars.anchor = CENTER;
-				vars.size = vec2(60);
-			EndNode();
-		EndNode();
-	EndNode();
-	
+
 	std::stringstream stream;
 	stream << std::fixed << std::setprecision(2) << GetAvgFrameTime() * 1000.f;
 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + stream.str() + "ms)");
@@ -92,7 +103,56 @@ void Update(float dt)
 	gui::EndNode();
 }
 
+std::string PreciseString(float value, int precision)
+{
+	std::stringstream stream;
+	stream << std::fixed << std::setprecision(precision) << value;
+	return stream.str();
+}
+
+void DrawText(vec2 position, std::string data, vec4 color)
+{
+	Text text;
+	text.data = data;
+	text.position = vec3(position.x, position.y, 0);
+	text.extents = vec2(2, 0.f);
+	text.alignment = TOP_LEFT;
+	text.textSize = 0.06f;
+	text.color = color;
+	text.font = LoadFont("arial.ttf", 80);
+	globalRenderQueue.PushText(text);
+}
+
 void Draw()
 {
-	
+	vec2 offset = vec2(-1.5f, 0.3f);
+
+	for (int i = 0; i < KEY_LAST; i++)
+	{
+		std::string bindingName = GetInputBindingName(i);
+		vec4 color = bindingStates[i] ? vec4(1, 0, 0, 1) : vec4(1);
+
+		if (i != 0)
+		{
+			if (i % 20 == 0)
+			{
+				offset.x += 0.6f;
+				offset.y = 0.3f;
+			}
+			else
+			{
+				offset.y -= 0.06f;
+			}
+		}
+
+		DrawText(offset, bindingName, color);
+	}
+
+	DrawText(vec2(-1.5f, 0.78f), "Mouse Position (pixel): (" + PreciseString(mousePosition.x, 0) + ", " + PreciseString(mousePosition.y, 0) + ")", vec4(1));
+	DrawText(vec2(-1.5f, 0.7f), "Mouse Position (world): (" + PreciseString(mouseWorldPosition.x, 2) + ", " + PreciseString(mouseWorldPosition.y, 2) + ")", vec4(1));
+
+	DrawText(vec2(-1.5f, 0.5f), textField, vec4(1));
+
+	bindingStates[MOUSE_SCROLL_UP] = false;
+	bindingStates[MOUSE_SCROLL_DOWN] = false;
 }

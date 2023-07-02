@@ -10,6 +10,7 @@ static std::vector<Rect> masks;
 //static u32 highestInputWidget;
 static u32 hoverWidget;
 static u32 interactWidget;
+static bool textInteractionThisFrame;
 
 static u32 widgetCount;
 static u32 prevWidgetCount;
@@ -90,6 +91,7 @@ void InitializeGUI()
 
 	guiMouseState = RELEASE;
 	mouseAboveGUI = false;
+	textInteractionThisFrame = false;
 }
 
 void SetGUICanvasSize(vec2 size)
@@ -113,7 +115,13 @@ void BeginGUI()
 	widgetCount = 0;
 
 	mouseAboveGUI = false;
-	inputString = nullptr;
+
+	if (!textInteractionThisFrame)
+	{
+		inputString = nullptr;
+	}
+
+	textInteractionThisFrame = false;
 }
 
 //Convert position and size from pixel coordinates to normalized screen coordinates
@@ -507,6 +515,7 @@ void GUIWidget::ProcessInput()
 		case TEXTFIELD:
 			if (interactWidget == id)
 			{
+				textInteractionThisFrame = true;
 				inputString = vars.textValue;
 			}
 			break;

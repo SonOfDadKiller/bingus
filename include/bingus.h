@@ -501,38 +501,56 @@ struct TestEntity : Entity
 #define KEY_LEFT_BRACKET	48
 #define KEY_RIGHT_BRACKET	49
 #define KEY_GRAVE_ACCENT	50
-							
-#define KEY_SPACE			51
-#define KEY_ESCAPE			52
-#define KEY_ENTER			53
-#define KEY_TAB				54
-#define KEY_BACKSPACE		55
-#define KEY_INSERT			56
-#define KEY_DELETE			57
-#define KEY_UP				58
-#define KEY_RIGHT			59
-#define KEY_DOWN			60
-#define KEY_LEFT			61
-#define KEY_PAGE_UP			62
-#define KEY_PAGE_DOWN		63
-#define KEY_HOME			64
-#define KEY_END				65
-#define KEY_CAPS_LOCK		66
-#define KEY_SCROLL_LOCK		67
-#define KEY_NUM_LOCK		68
-#define KEY_PRINT_SCREEN	69
-#define KEY_PAUSE			70
-#define KEY_F0				71
-#define KEY_F1				72
-#define KEY_F2				73
-#define KEY_F3				74
-#define KEY_F4				75
-#define KEY_F5				76
-#define KEY_F6				77
-#define KEY_F7				78
-#define KEY_F8				79
-#define KEY_F9				80
-#define KEY_LAST			81
+#define KEY_SEMICOLON		51
+
+#define KEY_SPACE			52
+#define KEY_ESCAPE			53
+#define KEY_ENTER			54
+#define KEY_TAB				55
+#define KEY_BACKSPACE		56
+#define KEY_INSERT			57
+#define KEY_DELETE			58
+#define KEY_UP				59
+#define KEY_RIGHT			60
+#define KEY_DOWN			61
+#define KEY_LEFT			62
+#define KEY_PAGE_UP			63
+#define KEY_PAGE_DOWN		64
+#define KEY_HOME			65
+#define KEY_END				66
+#define KEY_CAPS_LOCK		67
+#define KEY_SCROLL_LOCK		68
+#define KEY_NUM_LOCK		69
+#define KEY_PRINT_SCREEN	70
+#define KEY_PAUSE			71
+
+#define KEY_CONTROL_LEFT	72
+#define KEY_ALT_LEFT		73
+#define KEY_SHIFT_LEFT		74
+#define KEY_CONTROL_RIGHT	75
+#define KEY_ALT_RIGHT		76
+#define KEY_SHIFT_RIGHT		77
+
+#define KEY_F1				78
+#define KEY_F2				79
+#define KEY_F3				80
+#define KEY_F4				81
+#define KEY_F5				82
+#define KEY_F6				83
+#define KEY_F7				84
+#define KEY_F8				85
+#define KEY_F9				86
+#define KEY_F10				87
+#define KEY_F11				88
+#define KEY_F12				89
+
+#define KEY_LAST			90
+
+#define KEY_MOD_NONE		0
+#define KEY_MOD_CONTROL		1
+#define KEY_MOD_ALT			2
+#define KEY_MOD_SHIFT		4
+#define KEY_MOD_ANY			8
 
 enum InputState
 {
@@ -545,10 +563,13 @@ struct InputEvent
 {
 	u32 key;
 	InputState state;
+	u32 modifier;
 
 	bool operator==(const InputEvent& other) const
 	{
-		return key == other.key && state == other.state;
+		return key == other.key
+			&& state == other.state
+			&& modifier == other.modifier;
 	}
 
 	bool operator!= (const InputEvent& other) const
@@ -561,19 +582,23 @@ struct InputEventKeyHasher
 {
 	std::size_t operator()(const InputEvent& ie) const
 	{
-		return ((std::hash<u32>()(ie.key) ^ (std::hash<InputState>()(ie.state) << 1)));
+		return ((std::hash<u32>()(ie.key)
+			 ^ (std::hash<InputState>()(ie.state) << 1)) >> 1)
+			 ^ (std::hash<u32>()(ie.modifier) << 1);
 	}
 };
 
 struct InputBinding
 {
 	InputCallback callback;
+	std::string eventName;
 	bool blocking;
 };
 
 struct InputListener
 {
 	std::unordered_map<InputEvent, InputBinding, InputEventKeyHasher> bindings;
+	std::unordered_map<std::string, InputCallback> namedEvents;
 	std::function<u32(void)> onKeyReceive;
 	i32 priority;
 	bool blocking;
@@ -582,8 +607,16 @@ struct InputListener
 	InputListener(i32 priority, bool blocking = true);
 
 	void BindAction(u32 key, InputState state, InputCallback callback);
-	void BindAction(u32 key, InputState state, bool blocking, InputCallback callback);
+	void BindAction(u32 key, InputState state, std::string namedEvent);
+	void BindAction(u32 key, InputState state, u32 modifier, InputCallback callback);
+	void BindAction(u32 key, InputState state, u32 modifier, std::string namedEvent);
+	//void BindAction(u32 key, InputState state, bool blocking, InputCallback callback);
+	void BindAction(u32 key, InputState state, u32 modifier, bool blocking, InputCallback callback);
+	void BindAction(u32 key, InputState state, u32 modifier, bool blocking, std::string namedEvent);
 	void UnbindAction(u32 key, InputState state);
+	void UnbindAction(u32 key, InputState state, u32 modifier);
+	void BindNamedEvent(std::string name, InputCallback callback);
+	void UnbindNamedEvent(std::string name);
 	void SetPriority(i32 priority);
 };
 
@@ -604,6 +637,7 @@ void InitializeInput(GLFWwindow* window);
 void UpdateInput(GLFWwindow* window, float dt);
 void RegisterInputListener(InputListener* listener);
 void UnregisterInputListener(InputListener* listener);
+std::string GetInputBindingName(u32 binding);
 
 //GUI
 extern SpriteSheet defaultGuiSpritesheet;
