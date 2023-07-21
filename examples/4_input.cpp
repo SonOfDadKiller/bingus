@@ -49,7 +49,7 @@ void Start()
 		globalInputListener.BindAction(i, PRESS, KEY_MOD_CONTROL, [i]()
 		{
 			bindingStates[i] = true;
-			floatyTexts.push_back({ 0, "Ctrl+" + GetInputBindingName(i)});
+			floatyTexts.push_back({ 0, "Ctrl+" + GetInputBindingName(i) });
 		});
 
 		globalInputListener.BindAction(i, PRESS, KEY_MOD_ALT, [i]()

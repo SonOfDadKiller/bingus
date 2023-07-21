@@ -25,11 +25,19 @@ SpriteAnimator spriteAnim;
 SpriteBatch testBatch;
 SpriteSheet testSheet;
 
+static vec2 camPos;
+
 void Start()
 {
 	globalInputListener.BindAction(KEY_ESCAPE, HOLD, []()
 	{
 		ExitGame();
+	});
+
+	globalInputListener.BindAction(MOUSE_MIDDLE, HOLD, []()
+	{
+		std::cout << "Mouse World Delta: " << mouseWorldDelta.x << ", " << mouseWorldDelta.y << "\n";
+		SetCameraPosition(GetCameraPosition() - vec2(mouseWorldDelta.x, mouseWorldDelta.y));
 	});
 
 	//Set up sprite batch
@@ -57,6 +65,8 @@ void Start()
 	testBatch.texture = testSheet.texture;
 }
 
+using namespace gui;
+
 void Update(float dt)
 {
 #ifdef TRACY_ENABLE
@@ -78,25 +88,17 @@ void Draw()
 	//Draw sprites
 	spriteBatch.buffer->Clear();
 
-		SetClearColor(vec4(0.5f + cos(GetTime()) * 0.2f, 0.5f, 0.5f + sin(GetTime()) * 0.2f, 1.f));
+	SetClearColor(vec4(0.5f + cos(GetTime()) * 0.2f, 0.5f, 0.5f + sin(GetTime()) * 0.2f, 1.f));
 
-
-
-	//spriteBatch.PushSprite(Sprite(vec3(-0.5, 0, 0.1f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 	for (int i = 0; i < 10; i++)
 	{
-		vec3 position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.f);
-		//globalRenderQueue.spriteSheet = &spriteSheet;
-
 		Sprite sprite;
-		sprite.position = position;
+		sprite.position = vec3(wrapMinMax((i * 0.4f) + GetTime() * 0.5f, -2.f, 2.f), 0.f, 0.f);
 		sprite.size = vec2(0.3);
 		sprite.pivot = CENTER;
 		sprite.animator = &spriteAnim;
 		spriteBatch.PushSprite(sprite);
 	}
-
-	//spriteBatch.PushSprite(Sprite(vec3(0.5, 0, 2.f), vec2(1), CENTER, 0.f, Edges::None(), vec4(1), &spriteAnim));
 
 	spriteBatch.Draw();
 }
