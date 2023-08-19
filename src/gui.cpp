@@ -1,6 +1,8 @@
 #include "bingus.h"
 
 #include <stack>
+#include <iomanip>
+#include <sstream>
 
 static GUIWidget canvas;
 
@@ -53,7 +55,7 @@ void InitializeGUI()
 	});
 
 	defaultGuiSpriteSequence = &defaultGuiSpritesheet.sequences["ui"];
-	defaultGuiFont = LoadFont("arial.ttf", 80);
+	defaultGuiFont = LoadFont("inter_semibald.ttf", 26);
 
 	//renderQueue.buffer = new VertBuffer(POS_UV_COLOR);
 	renderQueue.spriteShader = LoadShader("ui_vertcolor.vert", "sprite_vertcolor.frag");
@@ -340,7 +342,9 @@ void GUIWidget::Draw()
 
 			//Text
 			Text text;
-			text.data = std::to_string(*vars.value);
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision(2) << *vars.value;
+			text.data = stream.str();
 			text.position = vec3(textPos, depth);
 			text.extents = textSize;
 			text.scale = vec2(GetWindowSize().y / GetWindowSize().x, 1.f);
@@ -657,7 +661,7 @@ GUIWidgetVars::GUIWidgetVars()
 	text = "";
 	dummyText = "";
 	textAlignment = TOP_LEFT;
-	textHeightInPixels = 28.f;
+	textHeightInPixels = 26.f;
 	font = defaultGuiFont;
 
 	state = nullptr;

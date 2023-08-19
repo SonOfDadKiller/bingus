@@ -236,7 +236,8 @@ Font* LoadFont(std::string filenameAndPath, u32 pixelHeight)
 	ZoneScoped;
 #endif
 
-	auto it = fonts.find(filenameAndPath);
+	std::string fontKey = filenameAndPath + "(" + std::to_string(pixelHeight) + "px)";
+	auto it = fonts.find(fontKey);
 	if (it != fonts.end())
 	{
 		//Return pointer to existing font
@@ -329,6 +330,6 @@ Font* LoadFont(std::string filenameAndPath, u32 pixelHeight)
 	delete[] fontBuffer;
 	delete[] pixelBuffer;
 
-	fonts[filenameAndPath] = font;
-	return &fonts[filenameAndPath];
+	fonts[fontKey] = font;
+	return &fonts[fontKey];
 }

@@ -249,6 +249,7 @@ SpriteAnimator::SpriteAnimator(SpriteSheet* sheet, std::string sequenceName, flo
 
 u32 SpriteAnimator::GetFrame()
 {
+	if ((u32)timer->timeElapsed == 0 || sequence->frames.size() == 0) return 0;
 	return (u32)timer->timeElapsed % sequence->frames.size();
 }
 
