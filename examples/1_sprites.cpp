@@ -53,7 +53,7 @@ void Start()
 	vec2 uiFrameSize = vec2(128);
 	testSheet = SpriteSheet(LoadTexture("ui.png"), {
 		{ "ui", SpriteSequence({
-			SpriteSequenceFrame(Edges::None(), Rect(vec2(0, 0), vec2(uiFrameSize.x, uiFrameSize.y))),
+			SpriteSequenceFrame(Edges::Zero(), Rect(vec2(0, 0), vec2(uiFrameSize.x, uiFrameSize.y))),
 			SpriteSequenceFrame(Edges::All(7), Rect(vec2(uiFrameSize.x, 0), vec2(uiFrameSize.x * 2.f, uiFrameSize.y))),
 		})}
 	});

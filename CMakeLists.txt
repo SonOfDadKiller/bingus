@@ -13,7 +13,6 @@ SET(BINGUS_SOURCE
 	"src/window.cpp"
 	"src/input.cpp"
 	"src/gui.cpp"
-	"src/entity.cpp"
 	"src/debug.cpp"
 	"src/collision.cpp"
 	"src/resource.cpp"

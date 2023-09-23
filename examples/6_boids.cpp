@@ -218,7 +218,7 @@ void FixedUpdate(float dt)
 void GUIControl(std::string label, float* value, float min, float max)
 {
 	Widget();
-		vars.margin = Edges::None();
+		vars.margin = Edges::Zero();
 		vars.size = vec2(0, 50);
 		Layout(HORIZONTAL);
 			vars.size = vec2(0);
@@ -307,7 +307,7 @@ void Draw()
 		spriteBatch.PushSprite(sprite);
 
 
-		/*spriteBatch.PushSprite(Sprite(pos, it->size, CENTER, rotation, Edges::None(), 
+		/*spriteBatch.PushSprite(Sprite(pos, it->size, CENTER, rotation, Edges::Zero(), 
 			it->color, &spriteSheet.sequences["triangle"], 0));*/
 	}
 

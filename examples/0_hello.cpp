@@ -28,11 +28,11 @@ void Start()
 
 void Update(float dt)
 {
-	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
-		gui::vars.margin = Edges::All(25);
-		gui::vars.size = vec2(0);
-		gui::vars.textHeightInPixels = 36.f;
-	gui::EndNode();
+// 	gui::Text("fps: " + std::to_string(GetFPS()) + "(" + std::to_string(GetAvgFrameTime()) + "ms)");
+// 		gui::vars.margin = Edges::All(25);
+// 		gui::vars.size = vec2(0);
+// 		gui::vars.textHeightInPixels = 36.f;
+// 	gui::EndNode();
 }
 
 void Draw()

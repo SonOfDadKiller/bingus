@@ -26,6 +26,10 @@ static std::unordered_map<std::string, Font> fonts;
 
 Texture* LoadTexture(std::string filenameAndPath)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	if (textures.find(filenameAndPath) != textures.end())
 	{
 		//Return pointer to existing texture
@@ -145,6 +149,10 @@ static u32 LoadShader(ShaderType type, string filePath)
 
 Shader* LoadShader(std::string vertexFilenameAndPath, std::string fragFilenameAndPath)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	//We add the file addresses together to form the key
 	std::string key = vertexFilenameAndPath + fragFilenameAndPath;
 	if (shaders.find(key) != shaders.end())
@@ -180,6 +188,10 @@ Shader* LoadShader(std::string vertexFilenameAndPath, std::string fragFilenameAn
 
 void Shader::EnableUniform(u32 uniformID, const char* name)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	u32 location = glGetUniformLocation(id, name);
 	assert(location != -1);
 	uniformLocations[uniformID] = location;
@@ -188,6 +200,10 @@ void Shader::EnableUniform(u32 uniformID, const char* name)
 
 void Shader::EnableUniforms(u32 uniformMask)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	uniforms = uniformMask;
 
 	if (HasUniform(SHADER_COLOR)) EnableUniform(SHADER_COLOR, "color");

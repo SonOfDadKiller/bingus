@@ -66,7 +66,7 @@ void HandleWindowSizeChange(GLFWwindow* window, int width, int height)
 	//Update camera projection, keep size
 	SetCameraSize(GetCameraSize(), true);
 
-	SetGUICanvasSize(windowSize);
+	//SetGUICanvasSize(windowSize);
 }
 
 void HandeMouseMove(GLFWwindow* window, double mouseX, double mouseY)

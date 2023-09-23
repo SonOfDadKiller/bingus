@@ -125,7 +125,6 @@ void BingusInit()
 {
 	InitializeRenderer();
 	InitializeInput(GetWindow());
-	InitializeGUI();
 	InitializeDebug();
 	exitGameCalled = false;
 	clearColor = vec4(0, 0, 0, 1);
@@ -154,13 +153,14 @@ void RunGame()
 		dt = gameTime - prevTime;
 
 		UpdateInput(GetWindow(), dt);
-		BeginGUI();
 
 		//Update timers
 		for (auto it = timers.begin(); it != timers.end(); it++)
 		{
 			if (!(*it)->paused) (*it)->timeElapsed += dt * (*it)->speed;
 		}
+
+		globalGUIContext.Start();
 
 		//Fixed timestep
 		if (dt > 0.25f) dt = 0.25f;
@@ -176,8 +176,6 @@ void RunGame()
 
 		//UpdateDebug();
 
-		BuildGUI();
-		ProcessGUIInput();
 
 		timestepAlpha = stepAccumulator / timestep;
 
@@ -186,11 +184,12 @@ void RunGame()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		if (drawEvent != nullptr) drawEvent();
 
+		globalGUIContext.EndAndDraw();
+
 		globalRenderQueue.Draw();
 		globalRenderQueue.Clear();
 
 		DrawDebug(dt);
-		DrawGUI();
 
 		SwapBuffers();
 		glfwPollEvents();
@@ -248,4 +247,3 @@ void SetGameDrawFunction(void(*callback)())
 {
 	drawEvent = callback;
 }
-

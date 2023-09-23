@@ -11,9 +11,6 @@ vec3 mouseWorldDelta;
 vec2 mousePrevPosition;
 vec3 mousePrevWorldPosition;
 
-std::string* inputString;
-float inputStringTimer;
-
 static std::vector<InputListener*> listeners;
 static std::vector<InputEvent> eventBuffer;
 static std::vector<InputState> keyStates;
@@ -56,10 +53,13 @@ void MouseScrollCallback(GLFWwindow* window, double x, double y)
 
 void CharacterCallback(GLFWwindow* window, u32 codepoint)
 {
-	if (inputString != nullptr)
+	for (auto itListener = listeners.begin(); itListener != listeners.end(); itListener++)
 	{
-		inputString->push_back(codepoint);
-		inputStringTimer = 0.f;
+		if ((*itListener)->onCharacterTyped != nullptr)
+		{
+			(*itListener)->onCharacterTyped(codepoint);
+			if ((*itListener)->blocking) return;
+		}
 	}
 }
 
@@ -86,18 +86,32 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	{
 		case GLFW_PRESS:
 			event.state = PRESS;
-			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
+			if (key == GLFW_KEY_BACKSPACE)
 			{
-				inputString->erase(inputString->end() - 1);
-				inputStringTimer = 0.f;
+				CharacterCallback(window, 8); //Backspace in unicode
+			}
+			else if (key == GLFW_KEY_LEFT)
+			{
+				CharacterCallback(window, 5); //We use ENQ and ACK for left and right arrow, because idk what they are
+			}
+			else if (key == GLFW_KEY_RIGHT)
+			{
+				CharacterCallback(window, 6);
 			}
 			break;
 		case GLFW_RELEASE: event.state = RELEASE; break;
 		case GLFW_REPEAT:
-			if (key == GLFW_KEY_BACKSPACE && inputString != nullptr && inputString->size() != 0)
+			if (key == GLFW_KEY_BACKSPACE)
 			{
-				inputString->erase(inputString->end() - 1);
-				inputStringTimer = 0.f;
+				CharacterCallback(window, 8);
+			}
+			else if (key == GLFW_KEY_LEFT)
+			{
+				CharacterCallback(window, 5);
+			}
+			else if (key == GLFW_KEY_RIGHT)
+			{
+				CharacterCallback(window, 6);
 			}
 			else
 			{
@@ -220,7 +234,6 @@ void InitializeInput(GLFWwindow* window)
 	glfwSetCharCallback(window, CharacterCallback);
 
 	//Initialize key states
-
 	keyStates = std::vector<InputState>(KEY_LAST, UP);
 	keyModifierStates = std::vector<u32>(KEY_LAST, KEY_MOD_NONE);
 
@@ -274,28 +287,6 @@ std::string GetInputBindingName(u32 binding)
 	return inputBindingNames[binding];
 }
 
-vec2 PixelToWorld(vec2 pixelCoord)
-{
-	pixelCoord = (pixelCoord / GetWindowSize()) * 2.f - 1.f;
-	vec4 origin = cameraViewProjInverse * vec4(pixelCoord, 0.f, 1.f);
-	origin.w = 1.0f / origin.w;
-	return vec2(origin.x, origin.y) * origin.w;
-}
-
-vec3 PixelToWorld(vec3 pixelCoord)
-{
-	pixelCoord = (pixelCoord / vec3(GetWindowSize(), 0)) * 2.f - 1.f;
-	vec4 origin = cameraViewProjInverse * vec4(pixelCoord.x, pixelCoord.y, 0.f, 1.f);
-	origin.w = 1.0f / origin.w;
-	return vec3(origin.x, origin.y, origin.z) * origin.w;
-}
-
-vec2 WorldToPixel(vec2 worldCoord)
-{
-	vec4 origin = cameraViewProj * vec4(worldCoord, 0.f, 1.f);
-	return vec2(origin.x, -origin.y) * GetWindowSize() / 2.f;
-}
-
 void CalculateWorldMousePos(GLFWwindow* window)
 {
 #ifdef TRACY_ENABLE
@@ -318,6 +309,7 @@ InputListener::InputListener(i32 priority, bool blocking)
 {
 	this->priority = priority;
 	this->blocking = blocking;
+	this->onCharacterTyped = nullptr;
 }
 
 void InputListener::BindAction(u32 key, InputState state, InputCallback callback)
@@ -391,11 +383,13 @@ void UpdateInput(GLFWwindow* window, float dt)
 	//Process events in buffer
 	for (auto itEvent = eventBuffer.begin(); itEvent != eventBuffer.end(); itEvent++)
 	{
+
+
 		keyStates[itEvent->key] = itEvent->state;
 		keyModifierStates[itEvent->key] = itEvent->modifier;
 	}
 
-	//Clear that mother fucking buffer god damn
+	//Clear that buffer - it is a good idea to remember to do this
 	eventBuffer.clear();
 
 	for (u32 key = 0; key != KEY_LAST; key++)
@@ -458,7 +452,4 @@ void UpdateInput(GLFWwindow* window, float dt)
 	//Reset scroll state, as it should only be in either PRESS or UP state
 	keyStates[MOUSE_SCROLL_UP] = UP;
 	keyStates[MOUSE_SCROLL_DOWN] = UP;
-
-	//Update input string timer
-	inputStringTimer += dt;
 }

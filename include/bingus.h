@@ -54,7 +54,7 @@ struct Edges
 	Edges() : Edges(0.f, 0.f, 0.f, 0.f) { }
 	Edges(float top, float right, float bottom, float left)
 		: top(top), right(right), bottom(bottom), left(left) { }
-	static Edges None() { return Edges(0.f, 0.f, 0.f, 0.f); }
+	static Edges Zero() { return Edges(0.f, 0.f, 0.f, 0.f); }
 	static Edges All(float value) { return Edges(value, value, value, value); }
 };
 
@@ -121,6 +121,15 @@ double wrapMinMax(double x, double min, double max);
 float wrapMax(float x, float max);
 float wrapMinMax(float x, float min, float max);
 vec4 hsv(vec4 hsv);
+
+vec2 PixelToWorld(vec2 pixelCoord);
+vec3 PixelToWorld(vec3 pixelCoord);
+
+vec2 PixelToNDC(vec2 pixelCoord);
+vec3 PixelToNDC(vec3 pixelCoord);
+
+vec2 WorldToPixel(vec2 worldCoord);
+
 
 //Renderer
 void InitializeRenderer();
@@ -303,7 +312,7 @@ struct SpriteAnimator
 struct Sprite
 {
 	vec4 color = vec4(1);
-	Edges nineSliceMargin = Edges::None();
+	Edges nineSliceMargin = Edges::Zero();
 	vec3 position = vec3(0);
 	vec2 size = vec2(0);
 	vec2 pivot = vec2(0);
@@ -358,7 +367,9 @@ Font* LoadFont(std::string filePath, u32 pixelHeight);
 
 struct TextRenderInfo
 {
-	vec2 caretOffset;
+	std::vector<vec2> caretPositionOffsets;
+	std::vector<u32> lineEndCharacters;
+	std::vector<vec2> lineEndOffsets;
 	vec2 renderScale;
 	float lineHeightInPixels;
 };
@@ -425,25 +436,25 @@ struct RenderQueue
 };
 
 //Entity
-struct Entity
-{
-	virtual void Tick() { }
-	virtual void Draw(SpriteBatch* batch) { }
-};
-
-struct Scene
-{
-	std::vector<Entity> entities;
-
-	Scene();
-	void Draw();
-};
-
-struct TestEntity : Entity
-{
-	void Tick() override;
-	void Draw(SpriteBatch* batch) override;
-};
+// struct Entity
+// {
+// 	virtual void Tick() { }
+// 	virtual void Draw(SpriteBatch* batch) { }
+// };
+// 
+// struct Scene
+// {
+// 	std::vector<Entity> entities;
+// 
+// 	Scene();
+// 	void Draw();
+// };
+// 
+// struct TestEntity : Entity
+// {
+// 	void Tick() override;
+// 	void Draw(SpriteBatch* batch) override;
+// };
 
 //Input
 //TODO: Add rest of keyboard
@@ -599,7 +610,7 @@ struct InputListener
 {
 	std::unordered_map<InputEvent, InputBinding, InputEventKeyHasher> bindings;
 	std::unordered_map<std::string, InputCallback> namedEvents;
-	std::function<u32(void)> onKeyReceive;
+	std::function<void(u32)> onCharacterTyped;
 	i32 priority;
 	bool blocking;
 
@@ -621,17 +632,11 @@ struct InputListener
 };
 
 extern InputListener globalInputListener;
-extern std::string* inputString;
-extern float inputStringTimer;
 
 extern vec2 mousePosition;
 extern vec3 mouseWorldPosition;
 extern vec2 mouseDelta;
 extern vec3 mouseWorldDelta;
-
-vec2 PixelToWorld(vec2 pixelCoord);
-vec3 PixelToWorld(vec3 pixelCoord);
-vec2 WorldToPixel(vec2 worldCoord);
 
 void InitializeInput(GLFWwindow* window);
 void UpdateInput(GLFWwindow* window, float dt);
@@ -640,121 +645,352 @@ void UnregisterInputListener(InputListener* listener);
 std::string GetInputBindingName(u32 binding);
 
 //GUI
-extern SpriteSheet defaultGuiSpritesheet;
-extern SpriteSequence* defaultGuiSpriteSequence;
-extern Font* defaultGuiFont;
-extern bool mouseAboveGUI;
-
-void InitializeGUI();
-void SetGUICanvasSize(vec2 size);
-void BeginGUI();
-void BuildGUI();
-void ProcessGUIInput();
-void DrawGUI();
-
-//TODO: Slider
-//TODO: Scroll Rect
-//TODO: Radial Button
-
-enum LayoutType { NONE, HORIZONTAL, VERTICAL };
-enum WidgetType { WIDGET, IMAGE, TEXT, BUTTON, TICKBOX, SLIDER, TEXTFIELD, LAYOUT, MASK, WINDOW };
+enum GUIWidgetComponent { GUI_NONE, GUI_IMAGE, GUI_LABEL, GUI_BUTTON, GUI_TICKBOX, GUI_SLIDER, GUI_TEXT_FIELD, GUI_FLOAT_FIELD, GUI_ROW, GUI_COLUMN };
 enum GUIImageSource { BLOCK, BOX, CROSS, TICK, MINUS, PLUS, ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT, GLASS, TEXT_FIELD_BG };
 
-struct GUIWidgetVars
+struct GUIWidget
 {
+	u64 id;
+	u64 parentID;
 	vec2 pos;
 	vec2 size;
 	vec2 pivot;
 	vec2 anchor;
 	Edges margin;
+	bool sizeXSet;
+	bool sizeYSet;
+	bool marginLeftSet;
+	bool marginRightSet;
+	bool marginTopSet;
+	bool marginBottomSet;
+	float renderDepth;
+	bool receiveInput;
+	bool dirty;
+	GUIWidgetComponent componentType;
 
-	GUIImageSource source;
+	GUIWidget()
+	{
+		id = 0;
+		parentID = 0;
+		pos = vec2(0);
+		size = vec2(0);
+		pivot = TOP_LEFT;
+		anchor = TOP_LEFT;
+		margin = Edges::Zero();
+		sizeXSet = false;
+		sizeYSet = false;
+		marginLeftSet = false;
+		marginRightSet = false;
+		marginTopSet = false;
+		marginBottomSet = false;
+		renderDepth = 0.f;
+		receiveInput = false;
+		dirty = true;
+		componentType = GUI_NONE;
+	}
+};
+
+struct GUIImage
+{
 	vec4 color;
 	Edges nineSliceMargin;
+	GUIImageSource source;
 
-	bool receiveInput;
+	GUIImage()
+	{
+		color = vec4(1);
+		nineSliceMargin = Edges::Zero();
+		source = BLOCK;
+	}
+};
 
-	LayoutType layoutType;
-	float spacing;
-	bool stretch;
-	
+struct GUILabel
+{
 	std::string text;
-	std::string dummyText;
+	Font* font;
+	vec4 color;
 	vec2 textAlignment;
 	float textHeightInPixels;
-	Font* font;
 
-	bool* state;
-	bool hoveredState;
-	InputState eventState;
+	GUILabel()
+	{
+		text = "";
+		font = nullptr; //This is set to defaultFont in the _Label() method of GUIContext
+		color = vec4(1);
+		textAlignment = TOP_LEFT;
+		textHeightInPixels = 26.f;
+	}
+};
+
+struct GUIButton
+{
+	vec4 color;
+	vec4 hoverColor;
+	vec4 pressColor;
+	Edges nineSliceMargin;
+	std::function<void(void)> onHoverEnter;
+	std::function<void(void)> onHover;
+	std::function<void(void)> onHoverExit;
 	std::function<void(void)> onPress;
 	std::function<void(void)> onHold;
-	
+	std::function<void(void)> onRelease;
+
+	GUIButton()
+	{
+		color = vec4(1);
+		hoverColor = vec4(vec3(0.9), 1.0);
+		pressColor = vec4(vec3(0.8), 1.0);
+		nineSliceMargin = Edges::All(8.f);
+		onHoverEnter = nullptr;
+		onHover = nullptr;
+		onHoverExit = nullptr;
+		onPress = nullptr;
+		onHold = nullptr;
+		onRelease = nullptr;
+	}
+};
+
+struct GUITickbox
+{
+	vec4 color;
+	vec4 hoverColor;
+	vec4 pressColor;
+	Edges nineSliceMargin;
+	bool* value;
+
+	GUITickbox()
+	{
+		color = vec4(1);
+		hoverColor = vec4(vec3(0.9), 1.0);
+		pressColor = vec4(vec3(0.8), 1.0);
+		nineSliceMargin = Edges::All(8.f);
+		value = nullptr;
+	}
+};
+
+struct GUISlider
+{
+	vec4 color;
+	vec4 hoverColor;
+	vec4 pressColor;
+	Edges nineSliceMargin;
+	vec2 textAlignment;
+	Font* font;
 	float* value;
+	float textHeightInPixels;
 	float min;
 	float max;
-	std::function<void(float)> onValueChanged;
 
-	std::string* textValue;
-	std::function<void(std::string)> onTextValueChanged;
-
-	GUIWidgetVars();
+	GUISlider()
+	{
+		color = vec4(1);
+		hoverColor = vec4(vec3(0.9), 1.0);
+		pressColor = vec4(vec3(0.8), 1.0);
+		nineSliceMargin = Edges::All(8.f);
+		textAlignment = CENTER_LEFT;
+		font = nullptr; //This is set to defaultFont in the _Slider() method of GUIContext
+		value = nullptr;
+		textHeightInPixels = 26.f;
+		min = 0.f;
+		max = 1.f;
+	}
 };
 
-struct GUIWidget
+struct GUITextField
 {
-	u32 id;
-	u32 parentID;
-	std::vector<u32> children;
+	Edges nineSliceMargin;
+	vec4 color;
+
+	std::string text;
+	std::string* value;
+	Font* font;
+	vec2 textAlignment;
+	float textHeightInPixels;
 	
-	float depth;
-	float layoutOffset;
-	GUIWidgetVars vars;
-	WidgetType type;
-
-	void Build();
-	void Draw();
-	void ProcessInput();
+	//TODO: Try to move this state out of here, it can be global.
+	//That way we don't have to track the state of existing text fields
+	
+	TextRenderInfo textInfo;
+	
+	GUITextField()
+	{
+		nineSliceMargin = Edges::All(8.f);
+		color = vec4(1);
+		value = nullptr;
+		font = nullptr; //This is set to defaultFont in the _TextField() method of GUIContext
+		textAlignment = TOP_LEFT;
+		textHeightInPixels = 26.f;
+	}
 };
 
-struct GUIWindow
+struct GUIFloatField
 {
-	vec2 pos;
-	vec2 size;
-	vec2 minSize = vec2(100);
-	vec2 maxSize = vec2(1000);
-	vec2 grabSize = NULL_VEC2;
-	vec2 grabPos = NULL_VEC2;
-	bool grabbed = false;
-	bool grabbedLeft = false;
-	bool grabbedTop = false;
-	bool grabbedRight = false;
-	bool grabbedBottom = false;
-	bool grabbedTopLeft = false;
-	bool grabbedTopRight = false;
-	bool grabbedBottomLeft = false;
-	bool grabbedBottomRight = false;
+	vec4 color;
+	vec4 hoverColor;
+	vec4 pressColor;
+	Edges nineSliceMargin;
+	TextRenderInfo textInfo;
+	vec2 textAlignment;
+	Font* font;
+	float* value;
+	float textHeightInPixels;
+	float min;
+	float max;
+
+	GUIFloatField()
+	{
+		color = vec4(1);
+		hoverColor = vec4(vec3(0.9), 1.0);
+		pressColor = vec4(vec3(0.8), 1.0);
+		nineSliceMargin = Edges::All(8.f);
+		textAlignment = CENTER_LEFT;
+		font = nullptr; //This is set to defaultFont in the _Slider() method of GUIContext
+		value = nullptr;
+		textHeightInPixels = 26.f;
+		min = 0.f;
+		max = 1.f;
+	}
 };
 
-//TODO: Rethink how to do this namespacing - it's very messy at the moment
-namespace gui
+//TODO: Refactor so that Row and Column are one thing (but still keep seperate Row() and Column() functions in GUIContext)
+struct GUIRow
 {
-	u32 Widget();
-	u32 Image(GUIImageSource source);
-	u32 Text(std::string text);
-	u32 Button();
-	u32 Button(bool* state, InputState eventState);
-	u32 Tickbox(bool* state);
-	u32 Slider(float* value);
-	u32 TextField(std::string* textValue);
-	u32 Layout(LayoutType type);
-	u32 Mask();
-	u32 Window(GUIWindow* window);
+	float spacing;
+	float offset;
+
+	GUIRow()
+	{
+		spacing = 0.f;
+		offset = 0.f;
+	}
+};
+
+struct GUIColumn
+{
+	float spacing;
+	float offset;
+
+	GUIColumn()
+	{
+		spacing = 0.f;
+		offset = 0.f;
+	}
+};
+
+struct GUIContext
+{
+	SpriteSheet spriteSheet;
+	SpriteSequence* spriteSequence;
+	Texture* spriteTexture;
+	Font* defaultFont;
+	float guiDepth;
+
+	GUIImage defaultImage;
+	GUILabel defaultLabel;
+	GUIButton defaultButton;
+	GUITickbox defaultTickbox;
+	GUISlider defaultSlider;
+	GUITextField defaultTextField;
+	GUIFloatField defaultFloatField;
+	GUIRow defaultRow;
+	GUIColumn defaultColumn;
+
+	void Start();
+	void EndAndDraw();
+
+	void _Widget(u64 id);
+	void _Image(u64 id);
+	void _Label(u64 id);
+	void _Button(u64 id);
+	void _LabelButton(u64 buttonID, u64 labelID, std::string _text);
+	void _Tickbox(u64 id);
+	void _Slider(u64 id);
+	void _TextField(u64 id);
+	void _FloatField(u64 id);
+	void _Row(u64 id);
+	void _Column(u64 id);
+
+	void pos(vec2 pos);
+	void posX(float x);
+	void posY(float y);
+	void size(vec2 size);
+	void width(float width);
+	void height(float height);
+	void pivot(vec2 pivot);
+	void anchor(vec2 anchor);
+	void margin(Edges margin);
+	void marginLeft(float left);
+	void marginTop(float top);
+	void marginRight(float right);
+	void marginBottom(float bottom);
+	void receiveInput(bool receiveInput);
+
+	void color(vec4 color);
+	void source(GUIImageSource source);
+	void nineSliceMargin(Edges nineSliceMargin);
+
+	void text(std::string text);
+	void font(Font* font);
+	void textAlignment(vec2 textAlignment);
+	void textHeightInPixels(float textHeightInPixels);
+
+	void hoverColor(vec4 color);
+	void pressColor(vec4 color);
+	void onHoverEnter(std::function<void(void)> onHoverEnter);
+	void onHover(std::function<void(void)> onHover);
+	void onHoverExit(std::function<void(void)> onHoverExit);
+	void onPress(std::function<void(void)> onPress);
+	void onHold(std::function<void(void)> onHold);
+	void onRelease(std::function<void(void)> onRelease);
+
+	void min(float min);
+	void max(float max);
+
+	void value(bool* value);
+	void value(float* value);
+	void value(std::string* value);
+
+	void spacing(float spacing);
+
 	void EndNode();
 
-	extern GUIWidgetVars vars;
-	GUIWidget& GetWidget(u32 id);
-}
+	void BuildWidget(u64 id);
+};
+
+extern GUIContext globalGUIContext;
+
+#define WidgetKey(key) _Widget(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Widget() _Widget(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define ImageKey(key) _Image(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Image() _Image(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define LabelKey(key) _Label(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Label() _Label(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define ButtonKey(key) _Button(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Button() _Button(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define LabelButtonKey(key) _LabelButton(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)), std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key) + "label"))
+#define LabelButton(text) _LabelButton(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)), std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + "label"), text)
+
+#define TickboxKey(key) _Tickbox(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Tickbox() _Tickbox(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define SliderKey(key) _Slider(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Slider() _Slider(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define FloatFieldKey(key) _FloatField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define FloatField() _FloatField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define TextFieldKey(key) _TextField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define TextField() _TextField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define RowKey(key) _Row(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Row() _Row(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
+
+#define ColumnKey(key) _Column(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define Column() _Column(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
 //Collision
 struct Circle

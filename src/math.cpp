@@ -54,3 +54,35 @@ vec4 hsv(vec4 hsv)
 
 	return rgb;
 }
+
+vec2 PixelToWorld(vec2 pixelCoord)
+{
+	pixelCoord = (pixelCoord / GetWindowSize()) * 2.f - 1.f;
+	vec4 origin = cameraViewProjInverse * vec4(pixelCoord, 0.f, 1.f);
+	origin.w = 1.0f / origin.w;
+	return vec2(origin.x, origin.y) * origin.w;
+}
+
+vec3 PixelToWorld(vec3 pixelCoord)
+{
+	pixelCoord = (pixelCoord / vec3(GetWindowSize(), 0)) * 2.f - 1.f;
+	vec4 origin = cameraViewProjInverse * vec4(pixelCoord.x, pixelCoord.y, 0.f, 1.f);
+	origin.w = 1.0f / origin.w;
+	return vec3(origin.x, origin.y, origin.z) * origin.w;
+}
+
+vec2 WorldToPixel(vec2 worldCoord)
+{
+	vec4 origin = cameraViewProj * vec4(worldCoord, 0.f, 1.f);
+	return vec2(origin.x, -origin.y) * GetWindowSize() / 2.f;
+}
+
+vec2 PixelToNDC(vec2 pixelCoord)
+{
+	return (pixelCoord / (GetWindowSize() / 2.f)) - vec2(1);
+}
+
+vec3 PixelToNDC(vec3 pixelCoord)
+{
+	return (pixelCoord / (vec3(GetWindowSize().x, GetWindowSize().y, 1.f) / 2.f)) - vec3(1);
+}

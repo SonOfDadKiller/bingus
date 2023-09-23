@@ -51,7 +51,7 @@ void InitializeRenderer()
 	globalRenderQueue.spriteShader->EnableUniforms(SHADER_MAIN_TEX);
 	globalRenderQueue.textShader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
 	globalRenderQueue.textShader->EnableUniforms(SHADER_MAIN_TEX);
-	globalRenderQueue.spriteSheet = &defaultGuiSpritesheet; //TODO: Change this?
+	globalRenderQueue.spriteSheet = nullptr; //TODO: Change this?
 	globalRenderQueue.font = LoadFont("arial.ttf", 80);
 }
 
@@ -215,7 +215,7 @@ SpriteSequence::SpriteSequence(vec2 firstFramePosition, vec2 frameSize, u32 coun
 {
 	for (u32 frameIndex = 0; frameIndex < count; frameIndex++)
 	{
-		SpriteSequenceFrame frame(Edges::None(),
+		SpriteSequenceFrame frame(Edges::Zero(),
 			Rect(vec2(firstFramePosition.x + frameIndex * frameSize.x, firstFramePosition.y),
 				 vec2(firstFramePosition.x + (frameIndex + 1) * frameSize.x, firstFramePosition.y + frameSize.y)));
 
@@ -573,19 +573,22 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 
 	//TODO: Make extents y based on line height not glyph height
 	vec2 extents = vec2(0);
-	info.caretOffset = vec2(0);
+	//info.caretPositionOffsets = std::vector<vec2>(1, vec2(0));
 	info.lineHeightInPixels = text.textSize;
 	info.renderScale = actualSize * text.scale;
 
 	//First we loop through the characters and find their local coordinates, this is so
 	//we can calculate the extents of the rendered text to later shift the coordinates
 	//around the pivot point
+	u32 index = 0;
 	for (auto it = text.data.begin(); it != text.data.end(); it++)
 	{
 		FontCharacter* glyph = &text.font->characters[*it];
 
 		vec2 glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize;
 		vec2 glyphSize = glyph->size * actualSize;
+
+		
 
 		//TODO: Implement smarter new-lining that doesn't split words
 		bool newLine = false;
@@ -601,11 +604,16 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 
 		if (newLine)
 		{
+			info.lineEndCharacters.push_back(index - 1);
+			info.lineEndOffsets.push_back(origin * actualSize);
+
 			//Move origin to new line position
 			origin.x = 0.f;
 			origin.y -= 1.f;
 			glyphPos = (origin + vec2(glyph->bearing.x, glyph->bearing.y - glyph->size.y)) * actualSize; //Copy of glyphpos calc above
 		}
+
+		info.caretPositionOffsets.push_back(origin * actualSize);
 
 		//Step extents
 		if (glyphPos.x + glyphSize.x > extents.x) extents.x = glyphPos.x + glyphSize.x;
@@ -615,10 +623,14 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 		glyphPos += vec2(text.position.x, text.position.y);
 
 		origin.x += glyph->advance;
-		info.caretOffset = origin * actualSize;
+		//info.caretPositionOffsets.push_back(origin * actualSize);
 
 		glyphRects.push_back({ glyphPos, glyphSize, glyph });
+		
+		index++;
 	}
+
+	info.caretPositionOffsets.push_back(origin * actualSize);
 
 	vec2 offset = ((text.extents) - extents) * text.alignment;
 
@@ -690,6 +702,10 @@ void DebugPrintFontData(Font* font)
 
 void RenderQueue::Clear()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	//Clear batches that were used last frame
 	for (int i = 0; i < currentSpriteBatchIndex; i++)
 	{
@@ -724,6 +740,10 @@ void RenderQueue::AddStep(void(*preDraw)(), void(*postDraw)())
 
 void RenderQueue::PushSprite(const Sprite& sprite)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	u32 spriteBatchIndex;
 
 	//Create new steps if the index has grown past the current size
@@ -768,6 +788,10 @@ void RenderQueue::PushText(const Text& text)
 
 void RenderQueue::PushText(const Text& text, TextRenderInfo& info)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	u32 textBatchIndex;
 
 	//Create new steps if the index has grown past the current size
@@ -807,6 +831,10 @@ void RenderQueue::PushText(const Text& text, TextRenderInfo& info)
 
 void RenderQueue::Draw()
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	//Iterate through steps in queue, triggering events and drawing their contents. Sprites draw before text.
 	for (u32 i = 0; i < steps.size(); i++)
 	{
@@ -837,6 +865,10 @@ void RenderQueue::Draw()
 
 void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	if (forceUpdateUBO || cameraPosition != position)
 	{
 		cameraPosition = position;
@@ -860,6 +892,10 @@ void SetCameraPosition(vec2 position, bool forceUpdateUBO)
 
 void SetCameraSize(float size, bool forceUpdateUBO)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	if (forceUpdateUBO || cameraSize != size)
 	{
 		cameraSize = size;
@@ -911,6 +947,10 @@ AABB GetCameraExents()
 
 bool PointIntersectsCamera(vec2 position, float buffer)
 {
+#ifdef TRACY_ENABLE
+	ZoneScoped;
+#endif
+
 	float actualCameraSize = cameraSize / GetWindowSize().y;
 	float halfWidth = GetWindowSize().x * actualCameraSize * 0.5f;
 	float halfHeight = GetWindowSize().y * actualCameraSize * 0.5f;

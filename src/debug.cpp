@@ -1,15 +1,19 @@
 #include "bingus.h"
 
-static TextBatch textBatch;
+static TextBatch textBatchWorld;
+static RenderBatch lineBatchWorld;
+static RenderBatch polyBatchWorld;
 
-static RenderBatch lineBatch;
-static RenderBatch polyBatch;
+static TextBatch textBatchScreen;
+static RenderBatch lineBatchScreen;
+static RenderBatch polyBatchScreen;
 
 struct DebugLine
 {
 	vec4 color;
 	vec3 start, end;
 	float timer;
+	u32 space;
 };
 
 struct DebugAABB
@@ -18,6 +22,7 @@ struct DebugAABB
 	AABB aabb;
 	float timer;
 	bool fill;
+	u32 space;
 };
 
 struct DebugCircle
@@ -27,6 +32,7 @@ struct DebugCircle
 	u32 pointCount;
 	float timer;
 	bool fill;
+	u32 space;
 };
 
 struct DebugPolygon
@@ -35,6 +41,7 @@ struct DebugPolygon
 	Polygon polygon;
 	float timer;
 	bool fill;
+	u32 space;
 };
 
 struct DebugText
@@ -44,6 +51,7 @@ struct DebugText
 	std::string data;
 	float size;
 	float timer;
+	u32 space;
 };
 
 std::vector<DebugLine> lines;
@@ -56,23 +64,34 @@ std::vector<DebugText> texts;
 void InitializeDebug()
 {
 	//Set up renderer
-
 	//TODO: Figure out if I really want to store the buffer in heap memory like this
-	textBatch.buffer = new VertBuffer(POS_UV_COLOR);
-	textBatch.shader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
-	textBatch.shader->EnableUniforms(SHADER_MAIN_TEX);
-	textBatch.font = LoadFont("arial.ttf", 80);
-	textBatch.texture = &textBatch.font->texture;
+	textBatchWorld.buffer = new VertBuffer(POS_UV_COLOR);
+	textBatchWorld.shader = LoadShader("world_vertcolor.vert", "text_vertcolor.frag");
+	textBatchWorld.shader->EnableUniforms(SHADER_MAIN_TEX);
+	textBatchWorld.font = LoadFont("arial.ttf", 80);
+	textBatchWorld.texture = &textBatchWorld.font->texture;
 
-	//Shader shapeShader = 
+	textBatchScreen.buffer = new VertBuffer(POS_UV_COLOR);
+	textBatchScreen.shader = LoadShader("ui_vertcolor.vert", "text_vertcolor.frag");
+	textBatchScreen.shader->EnableUniforms(SHADER_MAIN_TEX);
+	textBatchScreen.font = LoadFont("arial.ttf", 80);
+	textBatchScreen.texture = &textBatchWorld.font->texture;
 
-	lineBatch.shader = LoadShader("world_shape.vert", "shape.frag");
-	lineBatch.buffer = new VertBuffer(POS_COLOR);
-	lineBatch.drawMode = GL_LINES;
+	lineBatchWorld.shader = LoadShader("world_shape.vert", "shape.frag");
+	lineBatchWorld.buffer = new VertBuffer(POS_COLOR);
+	lineBatchWorld.drawMode = GL_LINES;
 
-	polyBatch.shader = LoadShader("world_shape.vert", "shape.frag");
-	polyBatch.buffer = new VertBuffer(POS_COLOR);
-	polyBatch.drawMode = GL_TRIANGLES;
+	lineBatchScreen.shader = LoadShader("ui_shape.vert", "shape.frag");
+	lineBatchScreen.buffer = new VertBuffer(POS_COLOR);
+	lineBatchScreen.drawMode = GL_LINES;
+
+	polyBatchWorld.shader = LoadShader("world_shape.vert", "shape.frag");
+	polyBatchWorld.buffer = new VertBuffer(POS_COLOR);
+	polyBatchWorld.drawMode = GL_TRIANGLES;
+
+	polyBatchScreen.shader = LoadShader("ui_shape.vert", "shape.frag");
+	polyBatchScreen.buffer = new VertBuffer(POS_COLOR);
+	polyBatchScreen.drawMode = GL_TRIANGLES;
 
 	glLineWidth(3.f);
 	glEnable(GL_LINE_SMOOTH);
@@ -80,7 +99,7 @@ void InitializeDebug()
 
 void DrawDebugIcon(u32 space, u32 icon, vec3 position, float size, vec4 color, float timer)
 {
-	
+	std::cout << "DrawDebugIcon Not Implemented\n";
 }
 
 void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, float timer)
@@ -90,6 +109,7 @@ void DrawDebugLine(u32 space, vec3 from, vec3 to, float thickness, vec4 color, f
 	d_line.end = to;
 	d_line.color = color;
 	d_line.timer = timer;
+	d_line.space = space;
 	lines.push_back(d_line);
 }
 
@@ -100,6 +120,7 @@ void DrawDebugLine(u32 space, vec2 from, vec2 to, float thickness, vec4 color, f
 	d_line.end = vec3(to, 0);
 	d_line.color = color;
 	d_line.timer = timer;
+	d_line.space = space;
 	lines.push_back(d_line);
 }
 
@@ -110,6 +131,7 @@ void DrawDebugAABB(u32 space, const AABB& aabb, vec4 color, bool fill, float tim
 	d_aabb.color = color;
 	d_aabb.fill = fill;
 	d_aabb.timer = timer;
+	d_aabb.space = space;
 	aabbs.push_back(d_aabb);
 }
 
@@ -121,6 +143,7 @@ void DrawDebugCircle(u32 space, const Circle& circle, u32 pointCount, vec4 color
 	d_circle.color = color;
 	d_circle.fill = fill;
 	d_circle.timer = timer;
+	d_circle.space = space;
 	circles.push_back(d_circle);
 }
 
@@ -131,6 +154,7 @@ void DrawDebugPolygon(u32 space, const Polygon& polygon, vec4 color, bool fill, 
 	d_polygon.color = color;
 	d_polygon.fill = fill;
 	d_polygon.timer = timer;
+	d_polygon.space = space;
 	polygons.push_back(d_polygon);
 }
 
@@ -142,6 +166,7 @@ void DrawDebugText(u32 space, vec3 position, float size, vec4 color, std::string
 	text.color = color;
 	text.data = data;
 	text.timer = timer;
+	text.space = space;
 	texts.push_back(text);
 }
 
@@ -150,14 +175,29 @@ void DrawDebugText(u32 space, vec2 position, float size, vec4 color, std::string
 	DrawDebugText(space, vec3(position, 0.f), size, color, data, timer);
 }
 
-void PushLineToBatch(vec3 start, vec3 end, vec4 color)
+void PushLineToBatch(vec3 start, vec3 end, vec4 color, u32 space)
 {
-	lineBatch.buffer->posColorVerts.push_back(Vertex_PosColor(start, color));
-	lineBatch.buffer->posColorVerts.push_back(Vertex_PosColor(end, color));
-	lineBatch.buffer->vertexIndices.push_back(lineBatch.buffer->vertexCount);
-	lineBatch.buffer->vertexIndices.push_back(lineBatch.buffer->vertexCount + 1);
-	lineBatch.buffer->vertexCount += 2;
-	lineBatch.buffer->dirty = true;
+	if (space == DEBUG_WORLD)
+	{
+		lineBatchWorld.buffer->posColorVerts.push_back(Vertex_PosColor(start, color));
+		lineBatchWorld.buffer->posColorVerts.push_back(Vertex_PosColor(end, color));
+		lineBatchWorld.buffer->vertexIndices.push_back(lineBatchWorld.buffer->vertexCount);
+		lineBatchWorld.buffer->vertexIndices.push_back(lineBatchWorld.buffer->vertexCount + 1);
+		lineBatchWorld.buffer->vertexCount += 2;
+		lineBatchWorld.buffer->dirty = true;
+	}
+	else if (space == DEBUG_SCREEN)
+	{
+		start = PixelToNDC(start);
+		end = PixelToNDC(end);
+
+		lineBatchScreen.buffer->posColorVerts.push_back(Vertex_PosColor(start, color));
+		lineBatchScreen.buffer->posColorVerts.push_back(Vertex_PosColor(end, color));
+		lineBatchScreen.buffer->vertexIndices.push_back(lineBatchScreen.buffer->vertexCount);
+		lineBatchScreen.buffer->vertexIndices.push_back(lineBatchScreen.buffer->vertexCount + 1);
+		lineBatchScreen.buffer->vertexCount += 2;
+		lineBatchScreen.buffer->dirty = true;
+	}
 }
 
 void PushTriToBatch(vec3 a, vec3 b, vec3 c, vec4 color)
@@ -165,7 +205,7 @@ void PushTriToBatch(vec3 a, vec3 b, vec3 c, vec4 color)
 
 }
 
-void PushAABBToBatch(const AABB& box, vec4 color, bool fill)
+void PushAABBToBatch(const AABB& box, vec4 color, bool fill, u32 space)
 {
 	if (fill)
 	{
@@ -173,14 +213,14 @@ void PushAABBToBatch(const AABB& box, vec4 color, bool fill)
 	}
 	else
 	{
-		PushLineToBatch(vec3(box.min, 0.f),				 vec3(box.max.x, box.min.y, 0.f), color);
-		PushLineToBatch(vec3(box.max.x, box.min.y, 0.f), vec3(box.max, 0.f), color);
-		PushLineToBatch(vec3(box.max, 0.f),				 vec3(box.min.x, box.max.y, 0.f), color);
-		PushLineToBatch(vec3(box.min.x, box.max.y, 0.f), vec3(box.min, 0.f), color);
+		PushLineToBatch(vec3(box.min, 0.f),				 vec3(box.max.x, box.min.y, 0.f), color, space);
+		PushLineToBatch(vec3(box.max.x, box.min.y, 0.f), vec3(box.max, 0.f), color, space);
+		PushLineToBatch(vec3(box.max, 0.f),				 vec3(box.min.x, box.max.y, 0.f), color, space);
+		PushLineToBatch(vec3(box.min.x, box.max.y, 0.f), vec3(box.min, 0.f), color, space);
 	}
 }
 
-void PushPolygonToBatch(const Polygon& polygon, vec4 color, bool fill)
+void PushPolygonToBatch(const Polygon& polygon, vec4 color, bool fill, u32 space)
 {
 	if (fill)
 	{
@@ -192,12 +232,12 @@ void PushPolygonToBatch(const Polygon& polygon, vec4 color, bool fill)
 		{
 			int next = i + 1;
 			if (next == polygon.vertices.size()) next = 0;
-			PushLineToBatch(vec3(polygon.vertices[i], 0), vec3(polygon.vertices[next], 0), color);
+			PushLineToBatch(vec3(polygon.vertices[i], 0), vec3(polygon.vertices[next], 0), color, space);
 		}
 	}
 }
 
-void PushCircleToBatch(const Circle& circle, vec4 color, u32 pointCount, bool fill)
+void PushCircleToBatch(const Circle& circle, vec4 color, u32 pointCount, bool fill, u32 space)
 {
 	if (fill)
 	{
@@ -206,12 +246,16 @@ void PushCircleToBatch(const Circle& circle, vec4 color, u32 pointCount, bool fi
 	else
 	{
 		vec3 lastPos = vec3(circle.position, 0) + vec3(0, circle.radius, 0); //sin(0), cos(0)
+		//if (space == DEBUG_SCREEN) lastPos = PixelToNDC(lastPos);
+
 		for (int i = 0; i < pointCount; i++)
 		{
 			float c = (float)(i + 1) / pointCount;
 			c = 3.1415926f * c * 2.f;
 			vec3 pos = vec3(circle.position, 0) + vec3(sin(c) * circle.radius, cos(c) * circle.radius, 0.f);
-			PushLineToBatch(lastPos, pos, color);
+			//if (space == DEBUG_SCREEN) pos = PixelToNDC(pos);
+
+			PushLineToBatch(lastPos, pos, color, space);
 			lastPos = pos;
 		}
 	}
@@ -223,15 +267,19 @@ void DrawDebug(float dt)
 	ZoneScoped;
 #endif
 
-	lineBatch.buffer->Clear();
-	polyBatch.buffer->Clear();
-	textBatch.buffer->Clear();
+	lineBatchWorld.buffer->Clear();
+	polyBatchWorld.buffer->Clear();
+	textBatchWorld.buffer->Clear();
+
+	lineBatchScreen.buffer->Clear();
+	polyBatchScreen.buffer->Clear();
+	textBatchScreen.buffer->Clear();
 
 	//Process lines
 	auto line_it = lines.begin();
 	while (line_it != lines.end())
 	{
-		PushLineToBatch(line_it->start, line_it->end, line_it->color);
+		PushLineToBatch(line_it->start, line_it->end, line_it->color, line_it->space);
 
 		//Update timer, remove if needed
 		line_it->timer -= dt;
@@ -243,7 +291,7 @@ void DrawDebug(float dt)
 	auto aabb_it = aabbs.begin();
 	while (aabb_it != aabbs.end())
 	{
-		PushAABBToBatch(aabb_it->aabb, aabb_it->color, aabb_it->fill);
+		PushAABBToBatch(aabb_it->aabb, aabb_it->color, aabb_it->fill, aabb_it->space);
 
 		//Update timer, remove if needed
 		aabb_it->timer -= dt;
@@ -255,7 +303,7 @@ void DrawDebug(float dt)
 	auto circle_it = circles.begin();
 	while (circle_it != circles.end())
 	{
-		PushCircleToBatch(circle_it->circle, circle_it->color, circle_it->pointCount, circle_it->fill);
+		PushCircleToBatch(circle_it->circle, circle_it->color, circle_it->pointCount, circle_it->fill, circle_it->space);
 
 		//Update timer, remove if needed
 		circle_it->timer -= dt;
@@ -267,7 +315,7 @@ void DrawDebug(float dt)
 	auto polygon_it = polygons.begin();
 	while (polygon_it != polygons.end())
 	{
-		PushPolygonToBatch(polygon_it->polygon, polygon_it->color, polygon_it->fill);
+		PushPolygonToBatch(polygon_it->polygon, polygon_it->color, polygon_it->fill, polygon_it->space);
 
 		//Update timer, remove if needed
 		polygon_it->timer -= dt;
@@ -282,13 +330,27 @@ void DrawDebug(float dt)
 		//Add text
 		Text text;
 		text.data = texts_it->data;
-		text.position = texts_it->position - vec3(5.f, 5.f, 0.f);
-		text.extents = vec2(10.f);
-		text.alignment = CENTER;
-		text.textSize = texts_it->size;
+		
 		text.color = texts_it->color;
-		text.font = textBatch.font;
-		textBatch.PushText(text);
+		text.font = textBatchWorld.font;
+
+		if (texts_it->space == DEBUG_WORLD)
+		{
+			text.position = texts_it->position - vec3(5.f, 5.f, 0.f);
+			text.extents = vec2(10);
+			text.textSize = texts_it->size;
+			text.alignment = CENTER;
+			textBatchWorld.PushText(text);
+		}
+		else if (texts_it->space == DEBUG_SCREEN)
+		{
+			text.position = PixelToNDC(texts_it->position);
+			text.extents = PixelToNDC(vec2(300)) + vec2(1);
+			text.textSize = PixelToNDC(vec2(0, texts_it->size)).y + 1.f;
+			text.alignment = BOTTOM_RIGHT;
+			text.scale = vec2(GetWindowSize().y / GetWindowSize().x, 1.f);
+			textBatchScreen.PushText(text);
+		}
 
 		//Update timer, remove if needed
 		texts_it->timer -= dt;
@@ -297,7 +359,12 @@ void DrawDebug(float dt)
 	}
 
 	//Draw text over lines over polys
-	polyBatch.Draw();
-	lineBatch.Draw();
-	textBatch.Draw();
+	//Draw screen over world
+	polyBatchWorld.Draw();
+	lineBatchWorld.Draw();
+	textBatchWorld.Draw();
+
+	polyBatchScreen.Draw();
+	lineBatchScreen.Draw();
+	textBatchScreen.Draw();
 }
