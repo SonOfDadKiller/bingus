@@ -3,5 +3,6 @@ out/
 .vscode/
 *.o
 *.obj
+!include/LivePP/Broker/Plugins/*.obj
 *.lib
 *.a
