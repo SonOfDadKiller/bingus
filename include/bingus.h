@@ -39,9 +39,6 @@ using glm::vec4;
 using glm::mat4;
 using glm::quat;
 
-#define NULL_FLOAT -std::numeric_limits<float>::max()
-#define NULL_VEC2 vec2(NULL_FLOAT)
-
 struct Rect
 {
 	vec2 min, max;
@@ -115,21 +112,18 @@ void HandleWindowSizeChange(GLFWwindow* window, int width, int height);
 void HandeMouseMove(GLFWwindow* window, double mouseX, double mouseY);
 void HandleMouseScroll(GLFWwindow* window, double scrollX, double scrollY);
 
-//Math
+//Utility
 double wrapMax(double x, double max);
 double wrapMinMax(double x, double min, double max);
 float wrapMax(float x, float max);
 float wrapMinMax(float x, float min, float max);
 vec4 hsv(vec4 hsv);
-
 vec2 PixelToWorld(vec2 pixelCoord);
 vec3 PixelToWorld(vec3 pixelCoord);
-
 vec2 PixelToNDC(vec2 pixelCoord);
 vec3 PixelToNDC(vec3 pixelCoord);
-
 vec2 WorldToPixel(vec2 worldCoord);
-
+float ParseFloat(std::string input, float oldValue = 0.f);
 
 //Renderer
 void InitializeRenderer();
@@ -832,6 +826,7 @@ struct GUIFloatField
 	TextRenderInfo textInfo;
 	vec2 textAlignment;
 	Font* font;
+	std::string text;
 	float* value;
 	float textHeightInPixels;
 	float min;
@@ -845,10 +840,11 @@ struct GUIFloatField
 		nineSliceMargin = Edges::All(8.f);
 		textAlignment = CENTER_LEFT;
 		font = nullptr; //This is set to defaultFont in the _Slider() method of GUIContext
+		text = "";
 		value = nullptr;
 		textHeightInPixels = 26.f;
-		min = 0.f;
-		max = 1.f;
+		min = -FLT_MAX;
+		max = FLT_MAX;
 	}
 };
 

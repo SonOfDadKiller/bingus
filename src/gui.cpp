@@ -38,7 +38,11 @@ static u32 textSelectStart;
 static bool selectingText;
 static float textFieldInputTime;
 
+static bool dragging;
+
 static bool initialized = false;
+
+void ProcessEnterKey();
 
 void GUIContext::Start()
 {
@@ -124,9 +128,14 @@ void GUIContext::Start()
 			shiftHeld = false;
 		});
 
+		inputListener.BindAction(KEY_ENTER, PRESS, ProcessEnterKey);
+
 		inputListener.priority = 1;
 
 		RegisterInputListener(&inputListener);
+
+		selectingText = false;
+		dragging = false;
 
 		initialized = true;
 	}
@@ -163,7 +172,17 @@ void ProcessTextInput(u32 codepoint)
 	ZoneScoped;
 #endif
 
-	GUITextField* textField = &textFieldPool[activeWidget];
+	//Get pointer to string being edited
+	std::string* inputString;
+	GUIWidget* widget = &widgetPool[activeWidget];
+	if (widget->componentType == GUI_TEXT_FIELD)
+	{
+		inputString = textFieldPool[activeWidget].value;
+	}
+	else if (widget->componentType == GUI_FLOAT_FIELD)
+	{
+		inputString = &floatFieldPool[activeWidget].text;
+	}
 	
 	if (codepoint == 5) //Left arrow (ENQ)
 	{
@@ -172,7 +191,7 @@ void ProcessTextInput(u32 codepoint)
 	}
 	else if (codepoint == 6) //Right arrow (ACK)
 	{
-		if (textSelectEnd != (*textField->value).size()) textSelectEnd++;
+		if (textSelectEnd != inputString->size()) textSelectEnd++;
 		if (!shiftHeld) textSelectStart = textSelectEnd;
 	}
 	else if (codepoint == 8) //Backspace
@@ -182,14 +201,14 @@ void ProcessTextInput(u32 codepoint)
 			//Deleting with multi-select
 			u32 _selectStart = std::min(textSelectStart, textSelectEnd);
 			u32 _selectEnd = std::max(textSelectStart, textSelectEnd);
-			(*textField->value).erase(_selectStart, _selectEnd - _selectStart);
+			inputString->erase(_selectStart, _selectEnd - _selectStart);
 
 			textSelectEnd = _selectStart;
 			textSelectStart = _selectStart;
 		}
 		else if (textSelectEnd != 0)
 		{
-			(*textField->value).erase(textSelectEnd - 1, 1);
+			inputString->erase(textSelectEnd - 1, 1);
 			textSelectEnd--;
 		}
 		textSelectStart = textSelectEnd;
@@ -202,21 +221,46 @@ void ProcessTextInput(u32 codepoint)
 			//Deleting with multi-select
 			u32 _selectStart = std::min(textSelectStart, textSelectEnd);
 			u32 _selectEnd = std::max(textSelectStart, textSelectEnd);
-			(*textField->value).erase(_selectStart, _selectEnd - _selectStart);
+			inputString->erase(_selectStart, _selectEnd - _selectStart);
 
 			textSelectEnd = _selectStart;
 			textSelectStart = _selectStart;
 		}
 
-		(*textField->value).insert((*textField->value).begin() + textSelectEnd, codepoint);
+		inputString->insert(inputString->begin() + textSelectEnd, codepoint);
 		textSelectEnd++;
 		textSelectStart = textSelectEnd;
+	}
+
+	if (widget->componentType == GUI_FLOAT_FIELD)
+	{
+		GUIFloatField* floatField = &floatFieldPool[activeWidget];
+		*floatField->value = glm::clamp(ParseFloat(floatField->text), floatField->min, floatField->max);
 	}
 
 	textFieldInputTime = GetTime();
 }
 
-u32 GetTextCharacterIndexAtPosition(GUIWidget* widget, GUITextField* textField, vec2 position)
+void ProcessEnterKey()
+{
+	if (activeWidget != 0)
+	{
+		if (widgetPool[activeWidget].componentType == GUI_FLOAT_FIELD)
+		{
+			GUIFloatField* floatField = &floatFieldPool[activeWidget];
+			if (!dragging)
+			{
+				*floatField->value = glm::clamp(ParseFloat(floatField->text), floatField->min, floatField->max);
+				selectingText = false;
+				textSelectStart = 0;
+				textSelectEnd = 0;
+				activeWidget = 0;
+			}
+		}
+	}
+}
+
+u32 GetTextCharacterIndexAtPosition(GUIWidget* widget, const TextRenderInfo& textInfo, float textHeightInPixels, vec2 position)
 {
 	//Clamp position to text area
 	position = vec2(std::clamp(position.x, widget->pos.x, widget->pos.x + widget->size.x), 
@@ -229,27 +273,27 @@ u32 GetTextCharacterIndexAtPosition(GUIWidget* widget, GUITextField* textField, 
 // 	DrawDebugCircle(DEBUG_SCREEN, Circle(widget->pos + widget->size, 5.f), 12, vec4(1, 0, 1, 1), false);
 // 	DrawDebugAABB(DEBUG_SCREEN, AABB(widget->pos, widget->pos + widget->size), vec4(0, 0, 1, 1), false);
 
-	u32 lineEndCharacterIndex = std::max((int)textField->textInfo.caretPositionOffsets.size() - 1, 0);
+	u32 lineEndCharacterIndex = std::max((int)textInfo.caretPositionOffsets.size() - 1, 0);
 	u32 line = 0;
 
-	if (!textField->textInfo.lineEndCharacters.empty())
+	if (!textInfo.lineEndCharacters.empty())
 	{
 		float diff = (widget->pos.y + widget->size.y - position.y);
 		// DrawDebugLine(DEBUG_SCREEN, widget->pos, vec2(widget->pos.x, widget->pos.y + diff), 2.f, vec4(0, 1, 0, 1));
 
-		float lineFloat = diff / textField->textHeightInPixels;
+		float lineFloat = diff / textHeightInPixels;
 		float floor = std::floor(lineFloat);
 
 		line = std::max((int)floor, 0);
-		if (line < textField->textInfo.lineEndCharacters.size())
+		if (line < textInfo.lineEndCharacters.size())
 		{
-			lineEndCharacterIndex = textField->textInfo.lineEndCharacters[line];
+			lineEndCharacterIndex = textInfo.lineEndCharacters[line];
 		}
 	}
 
 	for (int i = lineEndCharacterIndex; i != 0; i--)
 	{
-		vec2 offset = textField->textInfo.caretPositionOffsets[i];
+		vec2 offset = textInfo.caretPositionOffsets[i];
 		offset = ((offset) / 2.f) * GetWindowSize();
 		vec2 charPos = widget->pos + widget->size + vec2(4.f, -4.f) + offset;
 
@@ -257,9 +301,9 @@ u32 GetTextCharacterIndexAtPosition(GUIWidget* widget, GUITextField* textField, 
 		{
 			if (i == lineEndCharacterIndex)
 			{
-				if (line < textField->textInfo.lineEndCharacters.size())
+				if (line < textInfo.lineEndCharacters.size())
 				{
-					vec2 lineEndOffset = textField->textInfo.lineEndOffsets[line];
+					vec2 lineEndOffset = textInfo.lineEndOffsets[line];
 					lineEndOffset = ((lineEndOffset) / 2.f) * GetWindowSize();
 					if (position.x > widget->pos.x + 4.f + lineEndOffset.x)
 					{
@@ -267,7 +311,7 @@ u32 GetTextCharacterIndexAtPosition(GUIWidget* widget, GUITextField* textField, 
 					}
 				}
 
-				return std::clamp(i, 0, (int)textField->textInfo.caretPositionOffsets.size() - 1);
+				return std::clamp(i, 0, (int)textInfo.caretPositionOffsets.size() - 1);
 			}
 			return i;
 		}
@@ -330,11 +374,23 @@ void GUIContext::EndAndDraw()
 				hotWidget = widget->id;
 				foundHotWidget = true;
 
-				if ((activeWidget == 0 || widgetPool[activeWidget].componentType == GUI_TEXT_FIELD) && guiMouseState == PRESS)
+				if ((activeWidget == 0 || widgetPool[activeWidget].componentType == GUI_TEXT_FIELD
+									   || widgetPool[activeWidget].componentType == GUI_FLOAT_FIELD) 
+					&& guiMouseState == PRESS)
 				{
 					activeWidget = widget->id;
 				}
 			}
+		}
+
+		//Do some extra processing
+		if (id != activeWidget && widgetPool[id].componentType == GUI_FLOAT_FIELD)
+		{
+			//Set float field text to value
+			GUIFloatField* floatField = &floatFieldPool[id];
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision(2) << *floatField->value;
+			floatField->text = stream.str();
 		}
 	}
 
@@ -375,6 +431,8 @@ void GUIContext::EndAndDraw()
 
 	if (guiMouseState == RELEASE)
 	{
+		dragging = false;
+
 		if (activeWidget != 0)
 		{
 			GUIWidget* widget = &widgetPool[activeWidget];
@@ -398,6 +456,24 @@ void GUIContext::EndAndDraw()
 					}
 				}
 				selectingText = false;
+			}
+			else if (widget->componentType == GUI_FLOAT_FIELD)
+			{
+				if (hotWidget == activeWidget && !selectingText)
+				{
+					GUIFloatField* floatField = &floatFieldPool[activeWidget];
+					textFieldInputTime = GetTime();
+					textSelectStart = glm::max((int)floatField->text.size(), 0);
+					textSelectEnd = 0;
+					selectingText = true;
+				}
+				else
+				{
+					selectingText = false;
+					textSelectStart = 0;
+					textSelectEnd = 0;
+					activeWidget = 0;
+				}
 			}
 			else
 			{
@@ -439,7 +515,7 @@ void GUIContext::EndAndDraw()
 				if (hotWidget == activeWidget)
 				{
 					textFieldInputTime = GetTime();
-					textSelectStart = GetTextCharacterIndexAtPosition(widget, textField, mousePosition);
+					textSelectStart = GetTextCharacterIndexAtPosition(widget, textField->textInfo, textField->textHeightInPixels, mousePosition);
 					textSelectEnd = textSelectStart;
 				}
 			}
@@ -452,8 +528,40 @@ void GUIContext::EndAndDraw()
 
 				if (selectingText)
 				{
-					u32 selectIndex = GetTextCharacterIndexAtPosition(widget, textField, mousePosition);
+					u32 selectIndex = GetTextCharacterIndexAtPosition(widget, textField->textInfo, textField->textHeightInPixels, mousePosition);
 					textSelectEnd = selectIndex;
+				}
+			}
+		}
+		else if (widget->componentType == GUI_FLOAT_FIELD)
+		{
+			GUIFloatField* floatField = &floatFieldPool[activeWidget];
+			inputListener.onCharacterTyped = ProcessTextInput;
+
+			if (!selectingText)
+			{
+				textSelectStart = 0;
+				textSelectEnd = 0;
+				textFieldInputTime = GetTime() + 0.5f;
+			}
+
+			if (guiMouseState == HOLD)
+			{
+				if (activeWidget == hotWidget && glm::distance(guiMousePressPosition, mousePosition) > 3.f)
+				{
+					dragging = true;
+				}
+
+				if (dragging && !selectingText)
+				{
+					//Drag value
+					*floatField->value += mouseDelta.x / 100.f;
+					*floatField->value = glm::clamp(*floatField->value, floatField->min, floatField->max);
+
+					//Update text
+					std::stringstream stream;
+					stream << std::fixed << std::setprecision(2) << *floatField->value;
+					floatField->text = stream.str();
 				}
 			}
 		}
@@ -728,6 +836,137 @@ void GUIContext::EndAndDraw()
 					vec2 caretSize = vec2(2.f, textField->textHeightInPixels);
 					vec2 caretPixelPos = widget->pos + vec2(4.f, 0.f);
 					caretPixelPos.y += (widget->size.y - caretSize.y) * textField->textAlignment.y;
+					NormalizeRect(caretPixelPos, caretSize);
+
+					vec2 caretOffset = vec2(0);
+					if (info.caretPositionOffsets.size() > 1) caretOffset = info.caretPositionOffsets[textSelectEnd];
+
+					Sprite sprite;
+					sprite.position = vec3(caretPixelPos + caretOffset, widget->renderDepth);
+					sprite.size = caretSize;
+					sprite.pivot = BOTTOM_LEFT;
+					sprite.sequence = spriteSequence;
+					sprite.sequenceFrame = 0;
+					renderQueue.PushSprite(sprite);
+				}
+			}
+		}
+		else if (widget->componentType == GUI_FLOAT_FIELD)
+		{
+			GUIFloatField* floatField = &floatFieldPool[id];
+
+			vec2 textPos = pos + vec2(4.f, 0);
+			vec2 textExtents = size - vec2(8.f, 0.f);
+			vec4 textColor = glm::mix(floatField->color, vec4(1.f, 1.f, 1.f, floatField->color.w), 0.7f);
+
+			NormalizeRect(pos, size);
+			NormalizeRect(textPos, textExtents);
+			Edges nineSliceMargin = floatField->nineSliceMargin;
+			NormalizeEdges(nineSliceMargin);
+
+			//Background
+			Sprite sprite;
+			sprite.position = vec3(pos, widget->renderDepth);
+			sprite.size = size;
+			sprite.pivot = BOTTOM_LEFT;
+			sprite.nineSliceMargin = nineSliceMargin;
+			sprite.color = floatField->color;
+			sprite.sequence = spriteSequence;
+			sprite.sequenceFrame = (activeWidget == id || hotWidget == id) ? 10 : 11;
+			renderQueue.PushSprite(sprite);
+
+			TextRenderInfo info;
+			//info.caretPositionOffsets = std::vector<vec2>(1, vec2(0));
+			info.lineHeightInPixels = 40.f;
+			info.renderScale = vec2(1);
+
+			//Text
+			Text text;
+			text.data = floatField->text;
+			text.position = vec3(textPos, widget->renderDepth);
+			text.extents = textExtents;
+			text.scale = vec2(GetWindowSize().y / GetWindowSize().x, 1.f);
+			text.alignment = floatField->textAlignment;
+			text.textSize = floatField->textHeightInPixels / GetWindowSize().y * 2.f;
+			text.color = textColor;
+			text.font = floatField->font;
+			renderQueue.PushText(text, info);
+
+			floatField->textInfo = info;
+
+			//Selection
+			if (activeWidget == id)
+			{
+				if (textSelectStart != textSelectEnd)
+				{
+					//Selection box
+					u32 _selectStart = std::min(textSelectStart, textSelectEnd);
+					u32 _selectEnd = std::max(textSelectStart, textSelectEnd);
+
+					vec2 lineStartPos = floatField->textInfo.caretPositionOffsets[_selectStart];
+					u32 line = 0;
+
+					//Find line by iterating through characters
+					for (int i = 0; i < _selectStart; i++)
+					{
+						auto it = std::find(floatField->textInfo.lineEndCharacters.begin(), floatField->textInfo.lineEndCharacters.end(), i);
+						if (it != floatField->textInfo.lineEndCharacters.end()) line++;
+					}
+
+					for (int i = _selectStart; i != _selectEnd; i++)
+					{
+						//Check if this character starts a new line
+						auto it = std::find(floatField->textInfo.lineEndCharacters.begin(), floatField->textInfo.lineEndCharacters.end(), i);
+						if (it != floatField->textInfo.lineEndCharacters.end())
+						{
+							//Draw this line's selection rect
+							float rectWidth = ((floatField->textInfo.lineEndOffsets[line].x - lineStartPos.x) / 2.f) * GetWindowSize().x;
+							vec2 caretSize = vec2(rectWidth, floatField->textHeightInPixels);
+							vec2 caretPixelPos = widget->pos + vec2(4.f, 0.f);
+							caretPixelPos.y += (widget->size.y - caretSize.y) * floatField->textAlignment.y;
+							NormalizeRect(caretPixelPos, caretSize);
+
+							Sprite sprite;
+							sprite.position = vec3(caretPixelPos + lineStartPos, widget->renderDepth);
+							sprite.size = caretSize;
+							sprite.pivot = BOTTOM_LEFT;
+							sprite.color = vec4(1, 1, 1, 0.3f);
+							sprite.sequence = spriteSequence;
+							sprite.sequenceFrame = 0;
+							renderQueue.PushSprite(sprite);
+
+							if (floatField->textInfo.caretPositionOffsets.size() > i - 1)
+							{
+								lineStartPos = floatField->textInfo.caretPositionOffsets[i + 1];
+							}
+							
+							line++;	
+						}
+					}
+
+					vec2 endPos = floatField->textInfo.caretPositionOffsets[_selectEnd];
+					float rectWidth = ((endPos.x - lineStartPos.x) / 2.f) * GetWindowSize().x;
+					vec2 caretSize = vec2(rectWidth, floatField->textHeightInPixels);
+					vec2 caretPixelPos = widget->pos + vec2(4.f, 0.f);
+					caretPixelPos.y += (widget->size.y - caretSize.y) * floatField->textAlignment.y;
+					NormalizeRect(caretPixelPos, caretSize);
+
+					Sprite sprite;
+					sprite.position = vec3(caretPixelPos + lineStartPos, widget->renderDepth);
+					sprite.size = caretSize;
+					sprite.pivot = BOTTOM_LEFT;
+					sprite.color = vec4(1, 1, 1, 0.3f);
+					sprite.sequence = spriteSequence;
+					sprite.sequenceFrame = 0;
+					renderQueue.PushSprite(sprite);
+				}
+
+				//Caret
+				if ((int)((GetTime() - textFieldInputTime) * 2.f) % 2 == 0)
+				{
+					vec2 caretSize = vec2(2.f, floatField->textHeightInPixels);
+					vec2 caretPixelPos = widget->pos + vec2(4.f, 0.f);
+					caretPixelPos.y += (widget->size.y - caretSize.y) * floatField->textAlignment.y;
 					NormalizeRect(caretPixelPos, caretSize);
 
 					vec2 caretOffset = vec2(0);

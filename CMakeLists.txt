@@ -4,11 +4,14 @@ set(LIB_NAME "bingus")
 project(${LIB_NAME})
 set (CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /Gm-")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG:FULL /FUNCTIONPADMIN /OPT:NOREF /OPT:NOICF")
+
 # Define source and header files
-SET(BINGUS_SOURCE
+set(BINGUS_SOURCE
 	"src/glad.c"
 	"src/bingus.cpp"
-	"src/math.cpp"
+	"src/util.cpp"
 	"src/renderer.cpp"
 	"src/window.cpp"
 	"src/input.cpp"
@@ -18,7 +21,7 @@ SET(BINGUS_SOURCE
 	"src/resource.cpp"
 )
 
-SET(BINGUS_HEADERS
+set(BINGUS_HEADERS
 	"include/bingus.h"
 )
 
@@ -31,7 +34,7 @@ include_directories(lib/glfw/include)
 include_directories(lib/glm)
 
 option(TRACY_ENABLE "" ON)
-option( TRACY_ON_DEMAND "" ON)
+option(TRACY_ON_DEMAND "" ON)
 
 # Git submodule dependencies
 add_subdirectory(lib/glm)
@@ -41,8 +44,6 @@ add_subdirectory(lib/tracy)
 # Link library dependencies
 target_link_libraries(${LIB_NAME} glfw)
 target_link_libraries(${LIB_NAME} Tracy::TracyClient)
-
-
 
 #Examples
 if (${BINGUS_EXAMPLES})
@@ -69,6 +70,7 @@ if (${BINGUS_EXAMPLES})
 	add_executable(example_3_gui "examples/3_gui.cpp")
 	target_link_libraries(example_3_gui ${LIB_NAME})
 	target_link_libraries(${LIB_NAME} Tracy::TracyClient)
+	set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 
 	#Example 4 - input
 	add_executable(example_4_input "examples/4_input.cpp")

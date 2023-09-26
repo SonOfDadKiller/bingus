@@ -90,6 +90,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			{
 				CharacterCallback(window, 8); //Backspace in unicode
 			}
+			else if (key == GLFW_KEY_ENTER)
+			{
+				CharacterCallback(window, 133);
+			}
 			else if (key == GLFW_KEY_LEFT)
 			{
 				CharacterCallback(window, 5); //We use ENQ and ACK for left and right arrow, because idk what they are
@@ -104,6 +108,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			if (key == GLFW_KEY_BACKSPACE)
 			{
 				CharacterCallback(window, 8);
+			}
+			else if (key == GLFW_KEY_ENTER)
+			{
+				CharacterCallback(window, 133);
 			}
 			else if (key == GLFW_KEY_LEFT)
 			{

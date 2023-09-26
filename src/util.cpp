@@ -1,6 +1,5 @@
 #include "bingus.h"
 
-
 double wrapMax(double x, double max)
 {
 	return fmod(max + fmod(x, max), max);
@@ -85,4 +84,18 @@ vec2 PixelToNDC(vec2 pixelCoord)
 vec3 PixelToNDC(vec3 pixelCoord)
 {
 	return (pixelCoord / (vec3(GetWindowSize().x, GetWindowSize().y, 1.f) / 2.f)) - vec3(1);
+}
+
+float ParseFloat(std::string input, float oldValue)
+{
+	std::string::size_type sz;
+
+	try 
+	{
+		return std::stof(input, &sz);
+	}
+	catch (...)
+	{
+		return oldValue;
+	}
 }

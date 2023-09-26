@@ -89,16 +89,18 @@ void Update(float dt)
 
 	gui.defaultTextField.color = colorLight;
 
+	gui.defaultFloatField.color = colorLight;
+
 	//GUI
 	gui.Image();
 		gui.pivot(CENTER);
 		gui.anchor(CENTER);
-		gui.size(vec2(350, 400));
+		gui.size(vec2(450, 600));
 		gui.source(BOX);
 		gui.nineSliceMargin(Edges::All(8.f));
 
 		gui.Column();
-			gui.margin(Edges::All(8.f));
+			gui.margin(Edges::All(16.f));
 			gui.spacing(8.f);
 
 			gui.Label();
@@ -200,7 +202,7 @@ void Update(float dt)
 
 			gui.Widget();
 				gui.margin(Edges::Zero());
-				gui.height(180);
+				gui.height(130);
 
 				gui.Label();
 					gui.text("Text Field: ");

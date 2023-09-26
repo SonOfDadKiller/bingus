@@ -597,7 +597,7 @@ void TextBatch::PushText(const Text& text, TextRenderInfo& info)
 		{
 			newLine = true;
 		}
-		else if (*it == '\n')
+		else if (*it == 133)
 		{
 			newLine = true;
 		}
