@@ -1,11 +1,7 @@
-#include "bingus.h"
-
 #include <iomanip>
 #include <sstream>
 
-#ifdef _DEBUG
-#include "LivePP/API/x64/LPP_API_x64_CPP.h"
-#endif
+#include "bingus.h"
 
 void Start();
 void Update(float dt);
@@ -13,26 +9,6 @@ void Draw();
 
 int main()
 {
-
-#ifdef _DEBUG
-	// create a default agent, loading the Live++ agent from the given path, e.g. "ThirdParty/LivePP"
-	lpp::LppDefaultAgent lppAgent = lpp::LppCreateDefaultAgent(nullptr, L"../include/LivePP");
-
-	// bail out in case the agent is not valid
-	if (!lpp::LppIsValidDefaultAgent(&lppAgent))
-	{
-		return 1;
-	}
-
-	// enable Live++ for all loaded modules
-	lppAgent.EnableModule(lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, nullptr);
-
-	// run the application
-	// ...
-	//Application::Exec();
-#endif
-
-
 	SetupWindow(1280, 720, "GUI");
 	BingusInit();
 
@@ -41,11 +17,6 @@ int main()
 	SetGameDrawFunction(Draw);
 	
 	RunGame();
-
-#ifdef _DEBUG
-	// destroy the Live++ agent
-	lpp::LppDestroyDefaultAgent(&lppAgent);
-#endif
 
 	return 0;
 }
@@ -92,12 +63,22 @@ void Update(float dt)
 	gui.defaultFloatField.color = colorLight;
 
 	//GUI
+
+	gui.Label();
+		gui.anchor(TOP_LEFT);
+		gui.pivot(TOP_LEFT);
+		gui.pos(vec2(16));
+		gui.text(std::to_string(gui.mouseOverGUI));
+		gui.textAlignment(TOP_LEFT);
+	gui.EndNode();
+
 	gui.Image();
 		gui.pivot(CENTER);
 		gui.anchor(CENTER);
 		gui.size(vec2(450, 600));
 		gui.source(BOX);
 		gui.nineSliceMargin(Edges::All(8.f));
+		gui.receiveInput(true);
 
 		gui.Column();
 			gui.margin(Edges::All(16.f));
@@ -245,13 +226,6 @@ void Update(float dt)
 
 		gui.EndNode();
 	gui.EndNode();
-
-// 	gui.Image(std::string(__FILE__ ) + std::to_string(__LINE__));
-// 		gui.pos(GetWindowSize() / 2.f);
-// 		gui.size(vec2(100, 100));
-// 		gui.color(vec4(1, 0, 0, 1));
-// 	gui.EndNode();
-
 }
 
 void Draw()

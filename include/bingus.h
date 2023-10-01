@@ -18,6 +18,10 @@
 #include "tracy/TracyC.h"
 #endif
 
+#ifdef LIVEPP_ENABLE
+#include "LivePP/API/x64/LPP_API_x64_CPP.h"
+#endif
+
 using i8 = int8_t;
 using i16 = int16_t;
 using i32 = int32_t;
@@ -880,6 +884,7 @@ struct GUIContext
 	Texture* spriteTexture;
 	Font* defaultFont;
 	float guiDepth;
+	bool mouseOverGUI;
 
 	GUIImage defaultImage;
 	GUILabel defaultLabel;

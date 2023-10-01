@@ -35,6 +35,7 @@ include_directories(lib/glm)
 
 option(TRACY_ENABLE "" ON)
 option(TRACY_ON_DEMAND "" ON)
+option(LIVEPP_ENABLE "" ON)
 
 # Git submodule dependencies
 add_subdirectory(lib/glm)

@@ -50,12 +50,6 @@ void GUIContext::Start()
 	ZoneScoped;
 #endif
 
-	//Delete widgets from stack
-	widgetStack.clear();
-
-	//Add canvas to stack
-	widgetStack.push_back(0);
-
 	if (!initialized)
 	{
 		spriteTexture = LoadTexture("ui.png");
@@ -393,6 +387,8 @@ void GUIContext::EndAndDraw()
 			floatField->text = stream.str();
 		}
 	}
+
+	mouseOverGUI = foundHotWidget;
 
 	if (!foundHotWidget) hotWidget = 0;
 

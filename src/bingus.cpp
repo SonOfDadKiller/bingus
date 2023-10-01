@@ -25,6 +25,11 @@ float CalcAverageTick(float newtick)
 	return ticksum / MAXSAMPLES;
 }
 
+#ifdef LIVEPP_ENABLE
+//LIVE++
+lpp::LppDefaultAgent lppAgent;
+#endif
+
 //Time management
 static float dt = 0.f;
 static float gameTime = 0.f;
@@ -128,6 +133,22 @@ void BingusInit()
 	InitializeDebug();
 	exitGameCalled = false;
 	clearColor = vec4(0, 0, 0, 1);
+
+	//Connect Live Plus Plus if enabled
+#ifdef LIVEPP_ENABLE
+	// create a default agent, loading the Live++ agent from the given path, e.g. "ThirdParty/LivePP"
+	lppAgent = lpp::LppCreateDefaultAgent(nullptr, L"../include/LivePP");
+
+	// bail out in case the agent is not valid
+	if (!lpp::LppIsValidDefaultAgent(&lppAgent))
+	{
+		std::cout << "ERROR: LIVEPP AGENT NOT VALID";
+		return;
+	}
+
+	// enable Live++ for all loaded modules
+	lppAgent.EnableModule(lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, nullptr);
+#endif
 }
 
 void SwapBuffers()
@@ -225,6 +246,11 @@ void ExitGame()
 void BingusCleanup()
 {
 	glfwTerminate();
+
+#ifdef LIVEPP_ENABLE
+	// destroy the Live++ agent
+	lpp::LppDestroyDefaultAgent(&lppAgent);
+#endif
 }
 
 //Game Events
