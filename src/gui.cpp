@@ -1564,15 +1564,33 @@ void GUIContext::value(std::string* value)
 void GUIContext::min(float min)
 {
 	GUIWidget* widget = &widgetPool[widgetStack.back()];
-	assert(widget->componentType == GUI_SLIDER);
-	sliderPool[widget->id].min = min;
+	assert(widget->componentType == GUI_SLIDER
+		|| widget->componentType == GUI_FLOAT_FIELD);
+
+	if (widget->componentType == GUI_SLIDER)
+	{
+		sliderPool[widget->id].min = min;
+	}
+	else if (widget->componentType == GUI_FLOAT_FIELD)
+	{
+		floatFieldPool[widget->id].min = min;
+	}
 }
 
 void GUIContext::max(float max)
 {
 	GUIWidget* widget = &widgetPool[widgetStack.back()];
-	assert(widget->componentType == GUI_SLIDER);
-	sliderPool[widget->id].max = max;
+	assert(widget->componentType == GUI_SLIDER
+		|| widget->componentType == GUI_FLOAT_FIELD);
+
+	if (widget->componentType == GUI_SLIDER)
+	{
+		sliderPool[widget->id].max = max;
+	}
+	else if (widget->componentType == GUI_FLOAT_FIELD)
+	{
+		floatFieldPool[widget->id].max = max;
+	}
 }
 
 void GUIContext::spacing(float spacing)
