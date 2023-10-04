@@ -224,6 +224,27 @@ void Update(float dt)
 				gui.EndNode();
 			gui.EndNode();
 
+			gui.Widget();
+				gui.margin(Edges::Zero());
+				gui.height(40);
+
+				gui.Label();
+					gui.text("Float Field: ");
+					gui.margin(Edges::Zero());
+					gui.height(40);
+					gui.textAlignment(CENTER_LEFT);
+				gui.EndNode();
+
+				gui.FloatField();
+					gui.anchor(TOP_RIGHT);
+					gui.pivot(TOP_RIGHT);
+					gui.height(40);
+					gui.width(180);
+					static float floatFieldVal2 = 0.f;
+					gui.value(&floatFieldVal2);
+				gui.EndNode();
+			gui.EndNode();
+
 		gui.EndNode();
 	gui.EndNode();
 }

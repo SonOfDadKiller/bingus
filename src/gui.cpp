@@ -368,11 +368,14 @@ void GUIContext::EndAndDraw()
 				hotWidget = widget->id;
 				foundHotWidget = true;
 
-				if ((activeWidget == 0 || widgetPool[activeWidget].componentType == GUI_TEXT_FIELD
-									   || widgetPool[activeWidget].componentType == GUI_FLOAT_FIELD) 
+				if ((activeWidget == 0
+					|| widgetPool[activeWidget].componentType == GUI_TEXT_FIELD
+					|| widgetPool[activeWidget].componentType == GUI_FLOAT_FIELD)
 					&& guiMouseState == PRESS)
 				{
 					activeWidget = widget->id;
+
+					
 				}
 			}
 		}
@@ -440,9 +443,9 @@ void GUIContext::EndAndDraw()
 				if (button->onRelease != nullptr) button->onRelease();
 			}
 
-			//Keep text field active if we are selecting text
 			if (widget->componentType == GUI_TEXT_FIELD)
 			{
+				//Keep text field active if we are selecting text
 				GUITextField* textField = &textFieldPool[activeWidget];
 				if (activeWidget != hotWidget)
 				{
@@ -455,8 +458,9 @@ void GUIContext::EndAndDraw()
 			}
 			else if (widget->componentType == GUI_FLOAT_FIELD)
 			{
-				if (hotWidget == activeWidget && !selectingText)
+				if (hotWidget == activeWidget)
 				{
+					//Select whole text within float field
 					GUIFloatField* floatField = &floatFieldPool[activeWidget];
 					textFieldInputTime = GetTime();
 					textSelectStart = glm::max((int)floatField->text.size(), 0);
@@ -465,11 +469,38 @@ void GUIContext::EndAndDraw()
 				}
 				else
 				{
-					selectingText = false;
 					textSelectStart = 0;
 					textSelectEnd = 0;
 					activeWidget = 0;
+					selectingText = false;
 				}
+				
+
+
+// 				if (hotWidget == activeWidget && !selectingText)
+// 				{
+// 					GUIFloatField* floatField = &floatFieldPool[activeWidget];
+// 					textFieldInputTime = GetTime();
+// 					textSelectStart = glm::max((int)floatField->text.size(), 0);
+// 					textSelectEnd = 0;
+// 					selectingText = true;
+// 				}
+// 				else
+// 				{
+// 					if (hotWidget == 0)
+// 					{
+// 						selectingText = false;
+// 						activeWidget = 0;
+// 					}
+// 					else
+// 					{
+// 						//widgetPool[hotWidget];
+// 						
+// 					}
+// 					textSelectStart = 0;
+// 					textSelectEnd = 0;
+// 					
+// 				}
 			}
 			else
 			{
@@ -541,7 +572,15 @@ void GUIContext::EndAndDraw()
 				textFieldInputTime = GetTime() + 0.5f;
 			}
 
-			if (guiMouseState == HOLD)
+			if (guiMouseState == PRESS)
+			{
+				if (selectingText)
+				{
+					textSelectStart = glm::max((int)floatField->text.size(), 0);
+					textSelectEnd = 0;
+				}
+			}
+			else if (guiMouseState == HOLD)
 			{
 				if (activeWidget == hotWidget && glm::distance(guiMousePressPosition, mousePosition) > 3.f)
 				{
