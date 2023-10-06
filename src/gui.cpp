@@ -229,7 +229,9 @@ void ProcessTextInput(u32 codepoint)
 	if (widget->componentType == GUI_FLOAT_FIELD)
 	{
 		GUIFloatField* floatField = &floatFieldPool[activeWidget];
+		float oldVal = *floatField->value;
 		*floatField->value = glm::clamp(ParseFloat(floatField->text), floatField->min, floatField->max);
+		if (floatField->onValueChanged != nullptr && oldVal != *floatField->value) floatField->onValueChanged(*floatField->value);
 	}
 
 	textFieldInputTime = GetTime();
@@ -244,7 +246,9 @@ void ProcessEnterKey()
 			GUIFloatField* floatField = &floatFieldPool[activeWidget];
 			if (!dragging)
 			{
+				float oldVal = *floatField->value;
 				*floatField->value = glm::clamp(ParseFloat(floatField->text), floatField->min, floatField->max);
+				if (floatField->onValueChanged != nullptr && oldVal != *floatField->value) floatField->onValueChanged(*floatField->value);
 				selectingText = false;
 				textSelectStart = 0;
 				textSelectEnd = 0;
@@ -474,33 +478,6 @@ void GUIContext::EndAndDraw()
 					activeWidget = 0;
 					selectingText = false;
 				}
-				
-
-
-// 				if (hotWidget == activeWidget && !selectingText)
-// 				{
-// 					GUIFloatField* floatField = &floatFieldPool[activeWidget];
-// 					textFieldInputTime = GetTime();
-// 					textSelectStart = glm::max((int)floatField->text.size(), 0);
-// 					textSelectEnd = 0;
-// 					selectingText = true;
-// 				}
-// 				else
-// 				{
-// 					if (hotWidget == 0)
-// 					{
-// 						selectingText = false;
-// 						activeWidget = 0;
-// 					}
-// 					else
-// 					{
-// 						//widgetPool[hotWidget];
-// 						
-// 					}
-// 					textSelectStart = 0;
-// 					textSelectEnd = 0;
-// 					
-// 				}
 			}
 			else
 			{
@@ -590,8 +567,14 @@ void GUIContext::EndAndDraw()
 				if (dragging && !selectingText)
 				{
 					//Drag value
+					float oldVal = *floatField->value;
 					*floatField->value += mouseDelta.x / 100.f;
 					*floatField->value = glm::clamp(*floatField->value, floatField->min, floatField->max);
+
+					if (floatField->onValueChanged != nullptr && *floatField->value != oldVal)
+					{
+						floatField->onValueChanged(*floatField->value);
+					}
 
 					//Update text
 					std::stringstream stream;
@@ -1598,6 +1581,13 @@ void GUIContext::value(std::string* value)
 	GUIWidget* widget = &widgetPool[widgetStack.back()];
 	assert(widget->componentType == GUI_TEXT_FIELD);
 	textFieldPool[widget->id].value = value;
+}
+
+void GUIContext::onValueChanged(std::function<void(float)> onValueChanged)
+{
+	GUIWidget* widget = &widgetPool[widgetStack.back()];
+	assert(widget->componentType == GUI_FLOAT_FIELD);
+	floatFieldPool[widget->id].onValueChanged = onValueChanged;
 }
 
 void GUIContext::min(float min)

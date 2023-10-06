@@ -242,6 +242,9 @@ void Update(float dt)
 					gui.width(180);
 					static float floatFieldVal2 = 0.f;
 					gui.value(&floatFieldVal2);
+					gui.onValueChanged([](float val) {
+						std::cout << val << "\n";
+					});
 				gui.EndNode();
 			gui.EndNode();
 

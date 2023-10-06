@@ -832,6 +832,7 @@ struct GUIFloatField
 	Font* font;
 	std::string text;
 	float* value;
+	std::function<void(float)> onValueChanged;
 	float textHeightInPixels;
 	float min;
 	float max;
@@ -846,6 +847,7 @@ struct GUIFloatField
 		font = nullptr; //This is set to defaultFont in the _Slider() method of GUIContext
 		text = "";
 		value = nullptr;
+		onValueChanged = nullptr;
 		textHeightInPixels = 26.f;
 		min = -FLT_MAX;
 		max = FLT_MAX;
@@ -950,6 +952,7 @@ struct GUIContext
 	void value(bool* value);
 	void value(float* value);
 	void value(std::string* value);
+	void onValueChanged(std::function<void(float)> onValueChanged);
 
 	void spacing(float spacing);
 
