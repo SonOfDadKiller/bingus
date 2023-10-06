@@ -142,7 +142,7 @@ void BingusInit()
 	// bail out in case the agent is not valid
 	if (!lpp::LppIsValidDefaultAgent(&lppAgent))
 	{
-		std::cout << "ERROR: LIVEPP AGENT NOT VALID";
+		std::cout << "ERROR: LIVEPP AGENT NOT VALID\n";
 		return;
 	}
 
@@ -196,7 +196,6 @@ void RunGame()
 		if (updateEvent != nullptr) updateEvent(dt);
 
 		//UpdateDebug();
-
 
 		timestepAlpha = stepAccumulator / timestep;
 

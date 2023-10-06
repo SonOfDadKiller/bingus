@@ -963,37 +963,37 @@ struct GUIContext
 
 extern GUIContext globalGUIContext;
 
-#define WidgetKey(key) _Widget(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define WidgetKey(key) _Widget(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Widget() _Widget(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define ImageKey(key) _Image(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define ImageKey(key) _Image(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Image() _Image(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define LabelKey(key) _Label(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define LabelKey(key) _Label(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Label() _Label(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define ButtonKey(key) _Button(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define ButtonKey(key) _Button(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Button() _Button(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define LabelButtonKey(key) _LabelButton(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)), std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key) + "label"))
+#define LabelButtonKey(key) _LabelButton(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key), std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key + "label"))
 #define LabelButton(text) _LabelButton(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)), std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + "label"), text)
 
-#define TickboxKey(key) _Tickbox(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define TickboxKey(key) _Tickbox(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Tickbox() _Tickbox(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define SliderKey(key) _Slider(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define SliderKey(key) _Slider(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Slider() _Slider(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define FloatFieldKey(key) _FloatField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define FloatFieldKey(key) _FloatField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define FloatField() _FloatField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define TextFieldKey(key) _TextField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define TextFieldKey(key) _TextField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define TextField() _TextField(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define RowKey(key) _Row(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define RowKey(key) _Row(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Row() _Row(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
-#define ColumnKey(key) _Column(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__ + key)))
+#define ColumnKey(key) _Column(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__) + key))
 #define Column() _Column(std::hash<std::string>{}(std::string(__FILE__) + std::to_string(__LINE__)))
 
 //Collision

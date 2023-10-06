@@ -344,7 +344,7 @@ void DrawDebug(float dt)
 		}
 		else if (texts_it->space == DEBUG_SCREEN)
 		{
-			text.position = PixelToNDC(texts_it->position);
+			text.position = PixelToNDC(texts_it->position - vec3(150.f, 0.f, 0.f));
 			text.extents = PixelToNDC(vec2(300)) + vec2(1);
 			text.textSize = PixelToNDC(vec2(0, texts_it->size)).y + 1.f;
 			text.alignment = BOTTOM_RIGHT;
